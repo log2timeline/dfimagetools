@@ -5,6 +5,7 @@ include requirements.txt test_requirements.txt
 exclude .gitignore
 exclude *.pyc
 recursive-include config *
+recursive-include test_data *
 # The test scripts are not required in a binary distribution package they 
 # are considered source distribution files and excluded in find_package()
 # in setup.py.
