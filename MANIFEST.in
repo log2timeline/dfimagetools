@@ -4,6 +4,7 @@ include utils/check_dependencies.py
 include requirements.txt test_requirements.txt
 exclude .gitignore
 exclude *.pyc
+recursive-exclude imagetools *.pyc
 recursive-include config *
 recursive-include test_data *
 # The test scripts are not required in a binary distribution package they 
