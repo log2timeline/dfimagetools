@@ -66,8 +66,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     return display_path or '/'
 
-  def _ListFileEntry(
-      self, file_system, file_entry, parent_path_segments, output_writer):
+  def _ListFileEntry(self, file_system, file_entry, parent_path_segments):
     """Lists a file entry.
 
     Args:
@@ -75,26 +74,31 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       file_entry (dfvfs.FileEntry): file entry to list.
       parent_path_segments (str): path segments of the full path of the parent
           file entry.
-      output_writer (StdoutWriter): output writer.
+
+    Yields:
+      tuple[str, dfvfs.FileEntry]: display name and file entry.
     """
     path_segments = parent_path_segments + [file_entry.name]
 
     display_path = self._GetDisplayPath(file_entry.path_spec, path_segments, '')
     if not self._list_only_files or file_entry.IsFile():
-      output_writer.WriteFileEntry(display_path)
+      yield display_path, file_entry
 
     # TODO: print data stream names.
 
     for sub_file_entry in file_entry.sub_file_entries:
-      self._ListFileEntry(
-          file_system, sub_file_entry, path_segments, output_writer)
+      for entry in self._ListFileEntry(
+          file_system, sub_file_entry, path_segments):
+        yield entry
 
-  def ListFileEntries(self, base_path_specs, output_writer):
+  def ListFileEntries(self, base_path_specs):
     """Lists file entries in the base path specification.
 
     Args:
       base_path_specs (list[dfvfs.PathSpec]): source path specification.
-      output_writer (StdoutWriter): output writer.
+
+    Yields:
+      tuple[str, dfvfs.FileEntry]: display name and file entry.
     """
     for base_path_spec in base_path_specs:
       file_system = resolver.Resolver.OpenFileSystem(base_path_spec)
@@ -107,4 +111,5 @@ class FileEntryLister(volume_scanner.VolumeScanner):
                 path_specification_string))
         return
 
-      self._ListFileEntry(file_system, file_entry, [], output_writer)
+      for entry in self._ListFileEntry(file_system, file_entry, []):
+        yield entry

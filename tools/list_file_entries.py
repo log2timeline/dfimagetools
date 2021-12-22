@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """Script to list file entries."""
 
-import abc
 import argparse
 import logging
 import sys
@@ -13,116 +12,6 @@ from dfvfs.lib import errors
 
 from imagetools import file_entry_lister
 from imagetools import helpers
-
-
-class OutputWriter(object):
-  """Output writer interface."""
-
-  def __init__(self, encoding='utf-8'):
-    """Initializes an output writer.
-
-    Args:
-      encoding (Optional[str]): input encoding.
-    """
-    super(OutputWriter, self).__init__()
-    self._encoding = encoding
-    self._errors = 'strict'
-
-  def _EncodeString(self, string):
-    """Encodes the string.
-
-    Args:
-      string (str): string to encode.
-
-    Returns:
-      bytes: encoded string.
-    """
-    try:
-      # Note that encode() will first convert string into a Unicode string
-      # if necessary.
-      encoded_string = string.encode(self._encoding, errors=self._errors)
-    except UnicodeEncodeError:
-      if self._errors == 'strict':
-        logging.error(
-            'Unable to properly write output due to encoding error. '
-            'Switching to error tolerant encoding which can result in '
-            'non Basic Latin (C0) characters to be replaced with "?" or '
-            '"\\ufffd".')
-        self._errors = 'replace'
-
-      encoded_string = string.encode(self._encoding, errors=self._errors)
-
-    return encoded_string
-
-  @abc.abstractmethod
-  def Close(self):
-    """Closes the output writer object."""
-
-  @abc.abstractmethod
-  def Open(self):
-    """Opens the output writer object."""
-
-  @abc.abstractmethod
-  def WriteFileEntry(self, path):
-    """Writes the file path.
-
-    Args:
-      path (str): path of the file.
-    """
-
-
-class FileOutputWriter(OutputWriter):
-  """Output writer that writes to a file."""
-
-  def __init__(self, path, encoding='utf-8'):
-    """Initializes an output writer.
-
-    Args:
-      path (str): name of the path.
-      encoding (Optional[str]): input encoding.
-    """
-    super(FileOutputWriter, self).__init__(encoding=encoding)
-    self._file_object = None
-    self._path = path
-
-  def Close(self):
-    """Closes the output writer object."""
-    self._file_object.close()
-
-  def Open(self):
-    """Opens the output writer object."""
-    # Using binary mode to make sure to write Unix end of lines, so we can
-    # compare output files cross-platform.
-    self._file_object = open(self._path, 'wb')  # pylint: disable=consider-using-with
-
-  def WriteFileEntry(self, path):
-    """Writes the file path to file.
-
-    Args:
-      path (str): path of the file.
-    """
-    string = '{0:s}\n'.format(path)
-
-    encoded_string = self._EncodeString(string)
-    self._file_object.write(encoded_string)
-
-
-class StdoutWriter(OutputWriter):
-  """Output writer that writes to stdout."""
-
-  def Close(self):
-    """Closes the output writer object."""
-
-  def Open(self):
-    """Opens the output writer object."""
-
-  def WriteFileEntry(self, path):
-    """Writes the file path to stdout.
-
-    Args:
-      path (str): path of the file.
-    """
-    print(path)
 
 
 def Main():
@@ -188,19 +77,6 @@ def Main():
   logging.basicConfig(
       level=logging.INFO, format='[%(levelname)s] %(message)s')
 
-  if options.output_file:
-    output_writer = FileOutputWriter(options.output_file)
-  else:
-    output_writer = StdoutWriter()
-
-  try:
-    output_writer.Open()
-  except IOError as exception:
-    print('Unable to open output writer with error: {0!s}.'.format(
-        exception))
-    print('')
-    return False
-
   mediator = command_line.CLIVolumeScannerMediator()
   entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
 
@@ -227,7 +103,8 @@ def Main():
       print('')
       return False
 
-    entry_lister.ListFileEntries(base_path_specs, output_writer)
+    for path, _ in entry_lister.ListFileEntries(base_path_specs):
+      print(path)
 
     print('')
     print('Completed.')
@@ -243,8 +120,6 @@ def Main():
 
     print('')
     print('Aborted by user.')
-
-  output_writer.Close()
 
   return return_value
 
