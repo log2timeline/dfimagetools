@@ -8,6 +8,7 @@ from dfvfs.analyzer import fvde_analyzer_helper
 from dfvfs.helpers import volume_scanner
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
+from dfvfs.vfs import attribute as dfvfs_attribute
 
 from imagetools import helpers
 
@@ -26,6 +27,14 @@ class FileEntryLister(volume_scanner.VolumeScanner):
   _ESCAPE_CHARACTERS = str.maketrans({
       value: '\\x{0:02x}'.format(value)
       for value in _NON_PRINTABLE_CHARACTERS})
+
+  _MODE_TYPE = {
+      0x1000: 'p',
+      0x2000: 'c',
+      0x4000: 'd',
+      0x6000: 'b',
+      0xa000: 'l',
+      0xc000: 's'}
 
   def __init__(self, mediator=None):
     """Initializes a file entry lister.
@@ -66,6 +75,59 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     return display_path or '/'
 
+  def _GetBodyfileModeString(self, mode):
+    """Retrieves a bodyfile string representation of a mode.
+
+    Args:
+      mode (int): mode.
+
+    Returns:
+      str: bodyfile string representation of the mode.
+    """
+    file_mode = 10 * ['-']
+
+    if mode & 0x0001:
+      file_mode[9] = 'x'
+    if mode & 0x0002:
+      file_mode[8] = 'w'
+    if mode & 0x0004:
+      file_mode[7] = 'r'
+
+    if mode & 0x0008:
+      file_mode[6] = 'x'
+    if mode & 0x0010:
+      file_mode[5] = 'w'
+    if mode & 0x0020:
+      file_mode[4] = 'r'
+
+    if mode & 0x0040:
+      file_mode[3] = 'x'
+    if mode & 0x0080:
+      file_mode[2] = 'w'
+    if mode & 0x0100:
+      file_mode[1] = 'r'
+
+    file_mode[0] = self._MODE_TYPE.get(mode & 0xf000, '-')
+
+    return ''.join(file_mode)
+
+  def _GetBodyfileTimestamp(self, date_time):
+    """Retrieves a bodyfile timestamp representation of a date time value.
+
+    Args:
+      date_time (dfdatetime.DateTimeValues): date time value.
+
+    Returns:
+      str: bodyfile timestamp representation of the date time value.
+    """
+    # TODO: add fraction of second precision
+    date_time_string = ''
+    if date_time:
+      posix_timestamp = date_time.CopyToPosixTimestamp()
+      date_time_string = str(posix_timestamp)
+
+    return date_time_string
+
   def _ListFileEntry(self, file_system, file_entry, parent_path_segments):
     """Lists a file entry.
 
@@ -90,6 +152,46 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       for entry in self._ListFileEntry(
           file_system, sub_file_entry, path_segments):
         yield entry
+
+  def GetBodyfileEntry(self, path, file_entry):
+    """Retrieves a bodyfile entry representation of the file entry.
+
+    Args:
+      path (str): display name.
+      file_entry (dfvfs.FileEntry): file entry.
+
+    Returns:
+      str: bodyfile entry.
+    """
+    stat_attribute = None
+    for attribute in file_entry.attributes:
+      if isinstance(attribute, dfvfs_attribute.StatAttribute):
+        stat_attribute = attribute
+        break
+
+    # TODO: add support to calculate MD5
+    md5_string = '0'
+
+    inode_number = str(getattr(stat_attribute, 'inode_number', ''))
+
+    mode = getattr(stat_attribute, 'mode', 0)
+    mode_string = self._GetBodyfileModeString(mode)
+
+    owner_identifier = str(getattr(stat_attribute, 'owner_identifier', ''))
+    group_identifier = str(getattr(stat_attribute, 'group_identifier', ''))
+    size = str(file_entry.size)
+
+    access_time = self._GetBodyfileTimestamp(file_entry.access_time)
+    creation_time = self._GetBodyfileTimestamp(file_entry.creation_time)
+    change_time = self._GetBodyfileTimestamp(file_entry.change_time)
+    modification_time = self._GetBodyfileTimestamp(file_entry.modification_time)
+
+    # Colums in a Sleuthkit 3.x and later bodyfile
+    # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
+    return '|'.join([
+        md5_string, path, inode_number, mode_string, owner_identifier,
+        group_identifier, size, access_time, modification_time, change_time,
+        creation_time])
 
   def ListFileEntries(self, base_path_specs):
     """Lists file entries in the base path specification.

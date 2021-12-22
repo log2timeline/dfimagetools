@@ -103,8 +103,9 @@ def Main():
       print('')
       return False
 
-    for path, _ in entry_lister.ListFileEntries(base_path_specs):
-      print(path)
+    for path, file_entry in entry_lister.ListFileEntries(base_path_specs):
+      bodyfile_entry = entry_lister.GetBodyfileEntry(path, file_entry)
+      print(bodyfile_entry)
 
     print('')
     print('Completed.')
