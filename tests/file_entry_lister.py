@@ -10,42 +10,7 @@ from dfvfs.path import factory as path_spec_factory
 
 from imagetools import file_entry_lister
 
-from tools import list_file_entries
-
 from tests import test_lib
-
-
-class TestOutputWriter(list_file_entries.OutputWriter):
-  """Output writer for testing the file entry list tool.
-
-  Attributes:
-    paths (list[str]): paths of the file entries.
-  """
-
-  def __init__(self, encoding='utf-8'):
-    """Initializes an output writer.
-
-    Args:
-      encoding (Optional[str]): input encoding.
-    """
-    super(TestOutputWriter, self).__init__(encoding=encoding)
-    self.paths = []
-
-  def Close(self):
-    """Closes the output writer object."""
-    return
-
-  def Open(self):
-    """Opens the output writer object."""
-    return
-
-  def WriteFileEntry(self, path):
-    """Writes the file path.
-
-    Args:
-      path (str): path of the file.
-    """
-    self.paths.append(path)
 
 
 class FileEntryListerTest(test_lib.BaseTestCase):
@@ -71,13 +36,15 @@ class FileEntryListerTest(test_lib.BaseTestCase):
     file_system = resolver.Resolver.OpenFileSystem(path_spec)
     file_entry = resolver.Resolver.OpenFileEntry(path_spec)
 
-    output_writer = TestOutputWriter()
-    test_lister._ListFileEntry(file_system, file_entry, [''], output_writer)
+    file_entries = list(test_lister._ListFileEntry(
+        file_system, file_entry, ['']))
 
-    self.assertEqual(len(output_writer.paths), 1)
+    self.assertEqual(len(file_entries), 1)
 
     expected_paths = ['/passwords.txt']
-    self.assertEqual(output_writer.paths, expected_paths)
+
+    paths = [path for path, _ in file_entries]
+    self.assertEqual(paths, expected_paths)
 
   def testListFileEntries(self):
     """Tests the ListFileEntries function."""
@@ -87,8 +54,7 @@ class FileEntryListerTest(test_lib.BaseTestCase):
     test_lister = file_entry_lister.FileEntryLister()
 
     base_path_specs = test_lister.GetBasePathSpecs(path)
-    output_writer = TestOutputWriter()
-    test_lister.ListFileEntries(base_path_specs, output_writer)
+    file_entries = list(test_lister.ListFileEntries(base_path_specs))
 
     expected_paths = [
         '/',
@@ -102,8 +68,10 @@ class FileEntryListerTest(test_lib.BaseTestCase):
         dfvfs_definitions.TYPE_INDICATOR_TSK):
       expected_paths.append('/$OrphanFiles')
 
-    self.assertEqual(len(output_writer.paths), len(expected_paths))
-    self.assertEqual(output_writer.paths, expected_paths)
+    paths = [path for path, _ in file_entries]
+
+    self.assertEqual(len(file_entries), len(expected_paths))
+    self.assertEqual(paths, expected_paths)
 
   def testGetBasePathSpecs(self):
     """Tests the GetBasePathSpecs function."""
