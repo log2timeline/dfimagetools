@@ -201,7 +201,7 @@ setup(
         'Programming Language :: Python',
     ],
     packages=find_packages('.', exclude=[
-        'tests', 'tests.*', 'tools', 'utils']),
+        'docs', 'tests', 'tests.*', 'tools', 'utils']),
     package_dir={
         'imagetools': 'imagetools'
     },
