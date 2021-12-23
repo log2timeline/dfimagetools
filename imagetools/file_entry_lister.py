@@ -3,6 +3,8 @@
 
 import logging
 
+from dfdatetime import definitions as dfdatetime_definitions
+
 from dfvfs.analyzer import analyzer
 from dfvfs.analyzer import fvde_analyzer_helper
 from dfvfs.helpers import volume_scanner
@@ -35,6 +37,13 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       0x6000: 'b',
       0xa000: 'l',
       0xc000: 's'}
+
+
+  _TIMESTAMP_FORMAT_STRINGS = {
+      dfdatetime_definitions.PRECISION_1_NANOSECOND: '{0:.9f}',
+      dfdatetime_definitions.PRECISION_100_NANOSECONDS: '{0:.7f}',
+      dfdatetime_definitions.PRECISION_1_MICROSECOND: '{0:.6f}',
+      dfdatetime_definitions.PRECISION_1_MILLISECOND: '{0:.3f}'}
 
   def __init__(self, mediator=None):
     """Initializes a file entry lister.
@@ -120,13 +129,13 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     Returns:
       str: bodyfile timestamp representation of the date time value.
     """
-    # TODO: add fraction of second precision
-    date_time_string = ''
-    if date_time:
-      posix_timestamp = date_time.CopyToPosixTimestamp()
-      date_time_string = str(posix_timestamp)
+    if not date_time:
+      return ''
 
-    return date_time_string
+    posix_timestamp = date_time.CopyToPosixTimestampWithFractionOfSecond()
+    format_string = self._TIMESTAMP_FORMAT_STRINGS.get(
+        date_time.precision, '{0:.0f}')
+    return format_string.format(posix_timestamp)
 
   def _ListFileEntry(self, file_system, file_entry, parent_path_segments):
     """Lists a file entry.
