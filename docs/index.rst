@@ -13,6 +13,11 @@ The source code is available from the `project page <https://github.com/log2time
 .. toctree::
    :maxdepth: 2
 
+   Bodyfile format <sources/Bodyfile-format>
+
+.. toctree::
+   :maxdepth: 2
+
    API documentation <sources/api/imagetools>
 
 
