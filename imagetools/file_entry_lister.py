@@ -228,10 +228,16 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     file_entry_name_value = self._GetBodyfileName(
         file_entry.path_spec, path_segments)
 
+    if file_entry.link:
+      name_value = '{0:s} -> {1:s}'.format(
+          file_entry_name_value, file_entry.link)
+    else:
+      name_value = file_entry_name_value
+
     yield '|'.join([
-        md5_string, file_entry_name_value, inode_string, mode_string,
-        owner_identifier, group_identifier, size, access_time,
-        modification_time, change_time, creation_time])
+        md5_string, name_value, inode_string, mode_string, owner_identifier,
+        group_identifier, size, access_time, modification_time, change_time,
+        creation_time])
 
     for data_stream in file_entry.data_streams:
       if data_stream.name:

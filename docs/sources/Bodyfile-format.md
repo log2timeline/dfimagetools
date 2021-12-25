@@ -60,6 +60,9 @@ attribute the '($FILE_NAME)' suffix is added to the name value.
 ${PATH} (\$FILE_NAME)
 ```
 
+Note that at the moment the `list_file_entries.py` script does not combine
+a symbolic link target and '($FILE_NAME)' suffix.
+
 The `list_file_entries.py` script always uses forward slash ('/') as the path
 segment separator, even for NTFS. The following characters are escaped with
 a backslash ('\\'):
