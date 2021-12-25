@@ -2,6 +2,7 @@
 """Helper to list file entries."""
 
 import logging
+import re
 
 from dfdatetime import definitions as dfdatetime_definitions
 
@@ -10,8 +11,6 @@ from dfvfs.analyzer import fvde_analyzer_helper
 from dfvfs.helpers import volume_scanner
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
-
-from imagetools import helpers
 
 
 try:
@@ -25,7 +24,13 @@ class FileEntryLister(volume_scanner.VolumeScanner):
   """File entry lister."""
 
   _NON_PRINTABLE_CHARACTERS = list(range(0, 0x20)) + list(range(0x7f, 0xa0))
-  _ESCAPE_CHARACTERS = str.maketrans({
+
+  _BODYFILE_ESCAPE_CHARACTERS = {
+      '/': '\\/',
+      ':': '\\:',
+      '\\': '\\\\',
+      '|': '\\|'}
+  _BODYFILE_ESCAPE_CHARACTERS.update({
       value: '\\x{0:02x}'.format(value)
       for value in _NON_PRINTABLE_CHARACTERS})
 
@@ -43,6 +48,8 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       dfdatetime_definitions.PRECISION_1_MICROSECOND: '{0:.6f}',
       dfdatetime_definitions.PRECISION_1_MILLISECOND: '{0:.3f}'}
 
+  _UNICODE_SURROGATES_RE = re.compile('[\ud800-\udfff]')
+
   def __init__(self, mediator=None):
     """Initializes a file entry lister.
 
@@ -50,37 +57,9 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       mediator (dfvfs.VolumeScannerMediator): a volume scanner mediator.
     """
     super(FileEntryLister, self).__init__(mediator=mediator)
+    self._bodyfile_escape_characters = str.maketrans(
+        self._BODYFILE_ESCAPE_CHARACTERS)
     self._list_only_files = False
-
-  def _GetDisplayPath(self, path_spec, path_segments, data_stream_name):
-    """Retrieves a path to display.
-
-    Args:
-      path_spec (dfvfs.PathSpec): path specification of the file entry.
-      path_segments (list[str]): path segments of the full path of the file
-          entry.
-      data_stream_name (str): name of the data stream.
-
-    Returns:
-      str: path to display.
-    """
-    display_path = ''
-
-    if path_spec.HasParent():
-      parent_path_spec = path_spec.parent
-      if parent_path_spec and parent_path_spec.type_indicator in (
-          dfvfs_definitions.PARTITION_TABLE_TYPE_INDICATORS):
-        display_path = ''.join([display_path, parent_path_spec.location])
-
-    path_segments = [
-        segment.translate(self._ESCAPE_CHARACTERS) for segment in path_segments]
-    display_path = ''.join([display_path, '/'.join(path_segments)])
-
-    if data_stream_name:
-      data_stream_name = data_stream_name.translate(self._ESCAPE_CHARACTERS)
-      display_path = ':'.join([display_path, data_stream_name])
-
-    return display_path or '/'
 
   def _GetBodyfileModeString(self, mode):
     """Retrieves a bodyfile string representation of a mode.
@@ -118,6 +97,38 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     return ''.join(file_mode)
 
+  def _GetBodyfileName(self, path_spec, path_segments, data_stream_name):
+    """Retrieves a bodyfile name value.
+
+    Args:
+      path_spec (dfvfs.PathSpec): path specification of the file entry.
+      path_segments (list[str]): path segments of the full path of the file
+          entry.
+      data_stream_name (str): name of the data stream.
+
+    Returns:
+      str: path to display.
+    """
+    name_value = ''
+
+    if path_spec.HasParent():
+      parent_path_spec = path_spec.parent
+      if parent_path_spec and parent_path_spec.type_indicator in (
+          dfvfs_definitions.PARTITION_TABLE_TYPE_INDICATORS):
+        name_value = ''.join([name_value, parent_path_spec.location])
+
+    path_segments = [
+        segment.translate(self._bodyfile_escape_characters)
+        for segment in path_segments]
+    name_value = ''.join([name_value, '/'.join(path_segments)])
+
+    if data_stream_name:
+      data_stream_name = data_stream_name.translate(
+          self._bodyfile_escape_characters)
+      name_value = ':'.join([name_value, data_stream_name])
+
+    return name_value or '/'
+
   def _GetBodyfileTimestamp(self, date_time):
     """Retrieves a bodyfile timestamp representation of a date time value.
 
@@ -135,6 +146,25 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         date_time.precision, '{0:.0f}')
     return format_string.format(posix_timestamp)
 
+  def _GetPathSpecificationString(self, path_spec):
+    """Retrieves a printable string representation of the path specification.
+
+    Args:
+      path_spec (dfvfs.PathSpec): path specification.
+
+    Returns:
+      str: printable string representation of the path specification.
+    """
+    path_spec_string = path_spec.comparable
+
+    if self._UNICODE_SURROGATES_RE.search(path_spec_string):
+      path_spec_string = path_spec_string.encode(
+          'utf-8', errors='surrogateescape')
+      path_spec_string = path_spec_string.decode(
+          'utf-8', errors='backslashreplace')
+
+    return path_spec_string
+
   def _ListFileEntry(self, file_system, file_entry, parent_path_segments):
     """Lists a file entry.
 
@@ -145,35 +175,29 @@ class FileEntryLister(volume_scanner.VolumeScanner):
           file entry.
 
     Yields:
-      tuple[str, dfvfs.FileEntry]: display name and file entry.
+      tuple[dfvfs.FileEntry, list[str]]: file entry and path segments.
     """
     path_segments = parent_path_segments + [file_entry.name]
 
-    display_path = self._GetDisplayPath(file_entry.path_spec, path_segments, '')
     if not self._list_only_files or file_entry.IsFile():
-      yield display_path, file_entry
-
-    # TODO: print data stream names.
+      yield file_entry, path_segments
 
     for sub_file_entry in file_entry.sub_file_entries:
-      for entry in self._ListFileEntry(
+      for result in self._ListFileEntry(
           file_system, sub_file_entry, path_segments):
-        yield entry
+        yield result
 
-  def GetBodyfileEntry(self, path, file_entry):
-    """Retrieves a bodyfile entry representation of the file entry.
+  def GetBodyfileEntries(self, file_entry, path_segments):
+    """Retrieves bodyfile entry representations of a file entry.
 
     Args:
-      path (str): display name.
       file_entry (dfvfs.FileEntry): file entry.
+      path_segments (str): path segments of the full path of the file entry.
 
-    Returns:
+    Yields:
       str: bodyfile entry.
     """
     stat_attribute = file_entry.GetStatAttribute()
-
-    # TODO: add support to calculate MD5
-    md5_string = '0'
 
     if stat_attribute.inode_number is None:
       inode_string = ''
@@ -202,12 +226,30 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     change_time = self._GetBodyfileTimestamp(file_entry.change_time)
     modification_time = self._GetBodyfileTimestamp(file_entry.modification_time)
 
-    # Colums in a Sleuthkit 3.x and later bodyfile
-    # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
-    return '|'.join([
-        md5_string, path, inode_string, mode_string, owner_identifier,
-        group_identifier, size, access_time, modification_time, change_time,
-        creation_time])
+    if not file_entry.data_streams:
+      # TODO: add support to calculate MD5
+      md5_string = '0'
+
+      name_value = self._GetBodyfileName(
+          file_entry.path_spec, path_segments, '')
+
+      yield '|'.join([
+          md5_string, name_value, inode_string, mode_string, owner_identifier,
+          group_identifier, size, access_time, modification_time, change_time,
+          creation_time])
+
+    else:
+      for data_stream in file_entry.data_streams:
+        # TODO: add support to calculate MD5
+        md5_string = '0'
+
+        name_value = self._GetBodyfileName(
+            file_entry.path_spec, path_segments, data_stream.name)
+
+        yield '|'.join([
+            md5_string, name_value, inode_string, mode_string, owner_identifier,
+            group_identifier, size, access_time, modification_time, change_time,
+            creation_time])
 
   def ListFileEntries(self, base_path_specs):
     """Lists file entries in the base path specification.
@@ -216,18 +258,17 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       base_path_specs (list[dfvfs.PathSpec]): source path specification.
 
     Yields:
-      tuple[str, dfvfs.FileEntry]: display name and file entry.
+      tuple[dfvfs.FileEntry, list[str]]: file entry and path segments.
     """
     for base_path_spec in base_path_specs:
       file_system = resolver.Resolver.OpenFileSystem(base_path_spec)
       file_entry = resolver.Resolver.OpenFileEntry(base_path_spec)
       if file_entry is None:
-        path_specification_string = helpers.GetPathSpecificationString(
+        path_specification_string = self._GetPathSpecificationString(
             base_path_spec)
-        logging.warning(
-            'Unable to open base path specification:\n{0:s}'.format(
-                path_specification_string))
+        logging.warning('Unable to open base path specification:\n{0:s}'.format(
+            path_specification_string))
         return
 
-      for entry in self._ListFileEntry(file_system, file_entry, []):
-        yield entry
+      for result in self._ListFileEntry(file_system, file_entry, []):
+        yield result

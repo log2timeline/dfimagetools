@@ -28,9 +28,9 @@ def Main():
       metavar='NTFS', default=None, help='preferred dfVFS back-end.')
 
   argument_parser.add_argument(
-      '--output_file', '--output-file', dest='output_file', action='store',
-      metavar='source.hashes', default=None, help=(
-          'path of the output file, default is to output to stdout.'))
+      '--output_format', '--output-format', dest='output_format',
+      action='store', metavar='FORMAT', default='bodyfile', help=(
+          'output format, default is bodyfile.'))
 
   argument_parser.add_argument(
       '--partitions', '--partition', dest='partitions', action='store',
@@ -72,6 +72,13 @@ def Main():
     print('')
     return False
 
+  if options.output_format != 'bodyfile':
+    print('Unsupported output format: {0:s}.'.format(options.output_format))
+    print('')
+    argument_parser.print_help()
+    print('')
+    return False
+
   helpers.SetDFVFSBackEnd(options.back_end)
 
   logging.basicConfig(
@@ -103,24 +110,21 @@ def Main():
       print('')
       return False
 
-    for path, file_entry in entry_lister.ListFileEntries(base_path_specs):
-      bodyfile_entry = entry_lister.GetBodyfileEntry(path, file_entry)
-      print(bodyfile_entry)
-
-    print('')
-    print('Completed.')
+    for file_entry, path_segments in entry_lister.ListFileEntries(
+        base_path_specs):
+      for bodyfile_entry in entry_lister.GetBodyfileEntries(
+          file_entry, path_segments):
+        print(bodyfile_entry)
 
   except errors.ScannerError as exception:
     return_value = False
 
-    print('')
-    print('[ERROR] {0!s}'.format(exception))
+    print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
 
   except KeyboardInterrupt:
     return_value = False
 
-    print('')
-    print('Aborted by user.')
+    print('Aborted by user.', file=sys.stderr)
 
   return return_value
 
