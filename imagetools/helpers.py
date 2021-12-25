@@ -1,32 +1,7 @@
 # -*- coding: utf-8 -*-
 """Helper functions for CLI tools."""
 
-import re
-
 from dfvfs.lib import definitions as dfvfs_definitions
-
-
-_UNICODE_SURROGATES_RE = re.compile('[\ud800-\udfff]')
-
-
-def GetPathSpecificationString(path_spec):
-  """Retrieves a printable string representation of the path specification.
-
-  Args:
-    path_spec (dfvfs.PathSpec): path specification.
-
-  Returns:
-    str: printable string representation of the path specification.
-  """
-  path_spec_string = path_spec.comparable
-
-  if _UNICODE_SURROGATES_RE.search(path_spec_string):
-    path_spec_string = path_spec_string.encode(
-        'utf-8', errors='surrogateescape')
-    path_spec_string = path_spec_string.decode(
-        'utf-8', errors='backslashreplace')
-
-  return path_spec_string
 
 
 def SetDFVFSBackEnd(back_end):

@@ -41,10 +41,11 @@ class FileEntryListerTest(test_lib.BaseTestCase):
 
     self.assertEqual(len(file_entries), 1)
 
-    expected_paths = ['/passwords.txt']
+    expected_path_segments = [
+        ['', 'passwords.txt']]
 
-    paths = [path for path, _ in file_entries]
-    self.assertEqual(paths, expected_paths)
+    path_segments = [segments for _, segments in file_entries]
+    self.assertEqual(path_segments, expected_path_segments)
 
   def testGetBodyfileModeString(self):
     """Tests the _GetBodyfileModeString function."""
@@ -92,8 +93,8 @@ class FileEntryListerTest(test_lib.BaseTestCase):
     base_path_specs = test_lister.GetBasePathSpecs(path)
     self.assertEqual(base_path_specs, [expected_path_spec])
 
-  def testGetBodyfileEntry(self):
-    """Tests the GetBodyfileEntry function."""
+  def testGetBodyfileEntries(self):
+    """Tests the GetBodyfileEntries function."""
     path = self._GetTestFilePath(['image.qcow2'])
     self._SkipIfPathNotExists(path)
 
@@ -119,8 +120,9 @@ class FileEntryListerTest(test_lib.BaseTestCase):
         '0|/passwords.txt|15|-r--------|151107|5000|116|1337961653|'
         '1337961653|1337961663|')
 
-    bodyfile_entry = test_lister.GetBodyfileEntry(*file_entries[0])
-    self.assertEqual(bodyfile_entry, expected_bodyfile_entry)
+    bodyfile_entries = list(test_lister.GetBodyfileEntries(*file_entries[0]))
+    self.assertEqual(len(bodyfile_entries), 1)
+    self.assertEqual(bodyfile_entries[0], expected_bodyfile_entry)
 
   def testListFileEntries(self):
     """Tests the ListFileEntries function."""
@@ -132,22 +134,22 @@ class FileEntryListerTest(test_lib.BaseTestCase):
     base_path_specs = test_lister.GetBasePathSpecs(path)
     file_entries = list(test_lister.ListFileEntries(base_path_specs))
 
-    expected_paths = [
-        '/',
-        '/lost+found',
-        '/a_directory',
-        '/a_directory/another_file',
-        '/a_directory/a_file',
-        '/passwords.txt']
+    expected_path_segments = [
+        [''],
+        ['', 'lost+found'],
+        ['', 'a_directory'],
+        ['', 'a_directory', 'another_file'],
+        ['', 'a_directory', 'a_file'],
+        ['', 'passwords.txt']]
 
     if dfvfs_definitions.PREFERRED_EXT_BACK_END == (
         dfvfs_definitions.TYPE_INDICATOR_TSK):
-      expected_paths.append('/$OrphanFiles')
+      expected_path_segments.append(['', '$OrphanFiles'])
 
-    paths = [path for path, _ in file_entries]
+    path_segments = [segments for _, segments in file_entries]
 
-    self.assertEqual(len(file_entries), len(expected_paths))
-    self.assertEqual(paths, expected_paths)
+    self.assertEqual(len(file_entries), len(expected_path_segments))
+    self.assertEqual(path_segments, expected_path_segments)
 
 
 if __name__ == '__main__':
