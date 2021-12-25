@@ -57,7 +57,7 @@ Bodyfile entries where the time values are extracted for an NTFS $FILE_NAME
 attribute the '($FILE_NAME)' suffix is added to the name value.
 
 ```
-${PATH} ($FILE_NAME)
+${PATH} (\$FILE_NAME)
 ```
 
 The `list_file_entries.py` script always uses forward slash ('/') as the path

@@ -110,7 +110,7 @@ else:
               '%files -n {0:s}-%{{name}}'.format(python_package),
               '%defattr(644,root,root,755)',
               '%license LICENSE',
-              '%doc ']
+              '%doc README']
 
           lines.extend([
               '%{python3_sitelib}/imagetools/*.py',
@@ -208,7 +208,7 @@ setup(
     scripts=glob.glob(os.path.join('tools', '[a-z]*.py')),
     data_files=[
         ('share/doc/imagetools', [
-            'LICENSE']),
+            'LICENSE', 'README']),
     ],
     install_requires=parse_requirements_from_file('requirements.txt'),
     tests_require=parse_requirements_from_file('test_requirements.txt'),
