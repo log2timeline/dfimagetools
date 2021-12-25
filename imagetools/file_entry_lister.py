@@ -10,7 +10,6 @@ from dfvfs.analyzer import fvde_analyzer_helper
 from dfvfs.helpers import volume_scanner
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
-from dfvfs.vfs import attribute as dfvfs_attribute
 
 from imagetools import helpers
 
@@ -37,7 +36,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       0x6000: 'b',
       0xa000: 'l',
       0xc000: 's'}
-
 
   _TIMESTAMP_FORMAT_STRINGS = {
       dfdatetime_definitions.PRECISION_1_NANOSECOND: '{0:.9f}',
@@ -172,16 +170,19 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     Returns:
       str: bodyfile entry.
     """
-    stat_attribute = None
-    for attribute in file_entry.attributes:
-      if isinstance(attribute, dfvfs_attribute.StatAttribute):
-        stat_attribute = attribute
-        break
+    stat_attribute = file_entry.GetStatAttribute()
 
     # TODO: add support to calculate MD5
     md5_string = '0'
 
-    inode_number = str(getattr(stat_attribute, 'inode_number', ''))
+    inode_number = getattr(stat_attribute, 'inode_number', None)
+    if inode_number is None:
+      inode_string = ''
+    elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+      inode_string = '{0:d}-{1:d}'.format(
+          inode_number & 0xffffffffffff, inode_number >> 48)
+    else:
+      inode_string = '{0:d}'.format(inode_number)
 
     mode = getattr(stat_attribute, 'mode', 0)
     mode_string = self._GetBodyfileModeString(mode)
@@ -198,7 +199,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     # Colums in a Sleuthkit 3.x and later bodyfile
     # MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
     return '|'.join([
-        md5_string, path, inode_number, mode_string, owner_identifier,
+        md5_string, path, inode_string, mode_string, owner_identifier,
         group_identifier, size, access_time, modification_time, change_time,
         creation_time])
 
