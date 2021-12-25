@@ -5,6 +5,7 @@ import logging
 import re
 
 from dfdatetime import definitions as dfdatetime_definitions
+from dfvfs.vfs import ntfs_attribute as dfvfs_ntfs_attribute
 
 from dfvfs.analyzer import analyzer
 from dfvfs.analyzer import fvde_analyzer_helper
@@ -97,17 +98,16 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     return ''.join(file_mode)
 
-  def _GetBodyfileName(self, path_spec, path_segments, data_stream_name):
+  def _GetBodyfileName(self, path_spec, path_segments):
     """Retrieves a bodyfile name value.
 
     Args:
       path_spec (dfvfs.PathSpec): path specification of the file entry.
       path_segments (list[str]): path segments of the full path of the file
           entry.
-      data_stream_name (str): name of the data stream.
 
     Returns:
-      str: path to display.
+      str: bodyfile name value.
     """
     name_value = ''
 
@@ -121,11 +121,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         segment.translate(self._bodyfile_escape_characters)
         for segment in path_segments]
     name_value = ''.join([name_value, '/'.join(path_segments)])
-
-    if data_stream_name:
-      data_stream_name = data_stream_name.translate(
-          self._bodyfile_escape_characters)
-      name_value = ':'.join([name_value, data_stream_name])
 
     return name_value or '/'
 
@@ -226,30 +221,46 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     change_time = self._GetBodyfileTimestamp(file_entry.change_time)
     modification_time = self._GetBodyfileTimestamp(file_entry.modification_time)
 
-    if not file_entry.data_streams:
-      # TODO: add support to calculate MD5
-      md5_string = '0'
+    # TODO: add support to calculate MD5
+    md5_string = '0'
 
-      name_value = self._GetBodyfileName(
-          file_entry.path_spec, path_segments, '')
+    file_entry_name_value = self._GetBodyfileName(
+        file_entry.path_spec, path_segments)
 
-      yield '|'.join([
-          md5_string, name_value, inode_string, mode_string, owner_identifier,
-          group_identifier, size, access_time, modification_time, change_time,
-          creation_time])
+    yield '|'.join([
+        md5_string, file_entry_name_value, inode_string, mode_string,
+        owner_identifier, group_identifier, size, access_time,
+        modification_time, change_time, creation_time])
 
-    else:
-      for data_stream in file_entry.data_streams:
-        # TODO: add support to calculate MD5
-        md5_string = '0'
-
-        name_value = self._GetBodyfileName(
-            file_entry.path_spec, path_segments, data_stream.name)
+    for data_stream in file_entry.data_streams:
+      if data_stream.name:
+        data_stream_name = data_stream.name.translate(
+            self._bodyfile_escape_characters)
+        data_stream_name_value = ':'.join([
+            file_entry_name_value, data_stream_name])
 
         yield '|'.join([
-            md5_string, name_value, inode_string, mode_string, owner_identifier,
-            group_identifier, size, access_time, modification_time, change_time,
-            creation_time])
+            md5_string, data_stream_name_value, inode_string, mode_string,
+            owner_identifier, group_identifier, size, access_time,
+            modification_time, change_time, creation_time])
+
+    for attribute in file_entry.attributes:
+      if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
+        if attribute.name == file_entry.name:
+          attribute_name_value = '{0:s} ($FILE_NAME)'.format(
+              file_entry_name_value)
+
+          access_time = self._GetBodyfileTimestamp(attribute.access_time)
+          creation_time = self._GetBodyfileTimestamp(attribute.creation_time)
+          change_time = self._GetBodyfileTimestamp(
+              attribute.entry_modification_time)
+          modification_time = self._GetBodyfileTimestamp(
+              attribute.modification_time)
+
+          yield '|'.join([
+              md5_string, attribute_name_value, inode_string, mode_string,
+              owner_identifier, group_identifier, size, access_time,
+              modification_time, change_time, creation_time])
 
   def ListFileEntries(self, base_path_specs):
     """Lists file entries in the base path specification.

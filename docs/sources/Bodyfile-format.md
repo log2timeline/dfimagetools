@@ -53,7 +53,12 @@ contain a symobolic link target using the convention:
 ${PATH} -> ${SYMBOLIC_LINK_TARGET}
 ```
 
-The '($FILE_NAME)' suffix is not used.
+Bodyfile entries where the time values are extracted for an NTFS $FILE_NAME
+attribute the '($FILE_NAME)' suffix is added to the name value.
+
+```
+${PATH} ($FILE_NAME)
+```
 
 The `list_file_entries.py` script always uses forward slash ('/') as the path
 segment separator, even for NTFS. The following characters are escaped with
