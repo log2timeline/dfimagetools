@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Helper to list file entries."""
 
-import re
 import logging
+import re
 
 from dfdatetime import definitions as dfdatetime_definitions
 
