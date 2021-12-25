@@ -10,7 +10,7 @@ does not appear to have a strict definition. This document explains
 the implementation used by the imagetools project.
 
 The imagetools project uses a bodyfile format that has been derived from
-the fomrat used by SleuthKit 3.0 and later. Changes have been made to overcome
+the format used by SleuthKit 3.0 and later. Changes have been made to overcome
 several shortcomings of the original format.
 
 A bodyfile consists of one or more lines with 11 pipe-character ('|') delimited

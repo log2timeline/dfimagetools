@@ -11,7 +11,7 @@ The source code is available from the `project page <https://github.com/log2time
    sources/user/index
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    Bodyfile format <sources/Bodyfile-format>
 
