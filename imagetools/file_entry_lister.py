@@ -44,10 +44,10 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       0xc000: 's'}
 
   _TIMESTAMP_FORMAT_STRINGS = {
-      dfdatetime_definitions.PRECISION_1_NANOSECOND: '{0:.9f}',
-      dfdatetime_definitions.PRECISION_100_NANOSECONDS: '{0:.7f}',
-      dfdatetime_definitions.PRECISION_1_MICROSECOND: '{0:.6f}',
-      dfdatetime_definitions.PRECISION_1_MILLISECOND: '{0:.3f}'}
+      dfdatetime_definitions.PRECISION_1_NANOSECOND: '{0:d}.{1:09d}',
+      dfdatetime_definitions.PRECISION_100_NANOSECONDS: '{0:d}.{1:07d}',
+      dfdatetime_definitions.PRECISION_1_MICROSECOND: '{0:d}.{1:06d}',
+      dfdatetime_definitions.PRECISION_1_MILLISECOND: '{0:d}.{1:03d}'}
 
   _UNICODE_SURROGATES_RE = re.compile('[\ud800-\udfff]')
 
@@ -136,10 +136,11 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     if not date_time:
       return ''
 
-    posix_timestamp = date_time.CopyToPosixTimestampWithFractionOfSecond()
+    posix_timestamp, fraction_of_second = (
+        date_time.CopyToPosixTimestampWithFractionOfSecond())
     format_string = self._TIMESTAMP_FORMAT_STRINGS.get(
-        date_time.precision, '{0:.0f}')
-    return format_string.format(posix_timestamp)
+        date_time.precision, '{0:d}')
+    return format_string.format(posix_timestamp, fraction_of_second)
 
   def _GetPathSpecificationString(self, path_spec):
     """Retrieves a printable string representation of the path specification.
