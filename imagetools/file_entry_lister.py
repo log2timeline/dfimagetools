@@ -29,7 +29,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       value: '\\x{0:02x}'.format(value)
       for value in _NON_PRINTABLE_CHARACTERS})
 
-  _MODE_TYPE = {
+  _FILE_TYPES = {
       0x1000: 'p',
       0x2000: 'c',
       0x4000: 'd',
@@ -68,8 +68,8 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     if path_spec.HasParent():
       parent_path_spec = path_spec.parent
-      if parent_path_spec and parent_path_spec.type_indicator == (
-          dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION):
+      if parent_path_spec and parent_path_spec.type_indicator in (
+          dfvfs_definitions.PARTITION_TABLE_TYPE_INDICATORS):
         display_path = ''.join([display_path, parent_path_spec.location])
 
     path_segments = [
@@ -114,7 +114,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     if mode & 0x0100:
       file_mode[1] = 'r'
 
-    file_mode[0] = self._MODE_TYPE.get(mode & 0xf000, '-')
+    file_mode[0] = self._FILE_TYPES.get(mode & 0xf000, '-')
 
     return ''.join(file_mode)
 
@@ -175,20 +175,26 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     # TODO: add support to calculate MD5
     md5_string = '0'
 
-    inode_number = getattr(stat_attribute, 'inode_number', None)
-    if inode_number is None:
+    if stat_attribute.inode_number is None:
       inode_string = ''
     elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
       inode_string = '{0:d}-{1:d}'.format(
-          inode_number & 0xffffffffffff, inode_number >> 48)
+          stat_attribute.inode_number & 0xffffffffffff,
+          stat_attribute.inode_number >> 48)
     else:
-      inode_string = '{0:d}'.format(inode_number)
+      inode_string = '{0:d}'.format(stat_attribute.inode_number)
 
-    mode = getattr(stat_attribute, 'mode', 0)
+    mode = getattr(stat_attribute, 'mode', None) or 0
     mode_string = self._GetBodyfileModeString(mode)
 
-    owner_identifier = str(getattr(stat_attribute, 'owner_identifier', ''))
-    group_identifier = str(getattr(stat_attribute, 'group_identifier', ''))
+    owner_identifier = ''
+    if stat_attribute.owner_identifier is not None:
+      owner_identifier = str(stat_attribute.owner_identifier)
+
+    group_identifier = ''
+    if stat_attribute.group_identifier is not None:
+      group_identifier = str(stat_attribute.group_identifier)
+
     size = str(file_entry.size)
 
     access_time = self._GetBodyfileTimestamp(file_entry.access_time)
