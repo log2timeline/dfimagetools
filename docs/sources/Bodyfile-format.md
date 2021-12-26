@@ -26,7 +26,7 @@ Value | Description
 MD5 | MD5 of the file entry data.
 name | Full path of the file entry.
 inode | Unique identifier of the file entry within the file system.
-mode_as_string | POSIX file mode represented as a string for example 'drwx------'. <br> The SleuthKit specific `-/` prefix is not used by the `list_file_entries.py` script.
+mode_as_string | POSIX file mode represented as a string.
 UID | POSIX user identifier (UID) of the user owning the file entry. <br> Note that this value will be empty if the file system has no user identifier equivalent.
 GID | POSIX group identifier (GID) of the group owning the file entry. <br> Note that this value will be empty if the file system has no group identifier equivalent.
 size | Size of the data of the file entry. <br> Note that the `list_file_entries.py` script only reports the size of "regular" file entries.
@@ -87,6 +87,31 @@ system, which for some file systems is the inode number.
 For NTFS the convention `${MFT_ENTRY}-${SEQUENCE_NUMBER}` is used instead of
 the non-portable [metadata address](https://wiki.sleuthkit.org/index.php?title=Metadata_Address)
 used by the SleuthKit tools.
+
+## Mode_as_string value
+
+The mode_as_string value contains a POSIX file mode represented as a string, for
+example 'drwxr-xr-x'.
+
+Where the first character represents the file entry type:
+
+* '-' to indicate a "regular" file (S_IFREG) or unknown type
+* 'b' to indicate a block device (S_IFBLK)
+* 'c' to indicate a character device (S_IFCHR)
+* 'd' to indicate a directory (S_IFDIR)
+* 'l' to indicate a symbolic link (S_IFLNK)
+* 'p' to indicate a named-pipe (S_IFIFO)
+* 's' to indicate a socket (S_IFSOCK)
+
+The SleuthKit specific 'r' type indicator is not used by the dfImageTools
+project.
+
+The remaining characters are the read, write and execute permissions for owner,
+group and other.
+
+The SleuthKit specific `[-dlr]/` prefix is not used by the dfImageTools project.
+
+For NTFS dfImageTools currently sets the mode_as_string value to '----------'.
 
 ## Time values
 
