@@ -7,9 +7,9 @@ input to the mactime tool.
 
 The bodyfile format has been adopted by many other, non-SleuthKit tools, and
 does not appear to have a strict definition. This document explains
-the implementation used by the imagetools project.
+the implementation used by the dfImageTools project.
 
-The imagetools project uses a bodyfile format that has been derived from
+The dfImageTools project uses a bodyfile format that has been derived from
 the format used by SleuthKit 3.0 and later. Changes have been made to overcome
 several shortcomings of the original format.
 

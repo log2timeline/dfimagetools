@@ -8,7 +8,7 @@ from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
 from dfvfs.path import factory as path_spec_factory
 
-from imagetools import file_entry_lister
+from dfimagetools import file_entry_lister
 
 from tests import test_lib
 

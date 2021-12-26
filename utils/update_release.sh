@@ -10,11 +10,11 @@ VERSION=`date -u +"%Y%m%d"`
 DPKG_DATE=`date -R`
 
 # Update the Python module version.
-sed "s/__version__ = '[0-9]*'/__version__ = '${VERSION}'/" -i imagetools/__init__.py
+sed "s/__version__ = '[0-9]*'/__version__ = '${VERSION}'/" -i dfimagetools/__init__.py
 
 # Update the version in the dpkg configuration files.
 cat > config/dpkg/changelog << EOT
-imagetools (${VERSION}-1) unstable; urgency=low
+dfimagetools (${VERSION}-1) unstable; urgency=low
 
   * Auto-generated
 

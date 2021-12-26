@@ -1,7 +1,7 @@
-imagetools
-==========
+dfimagetools
+============
 
 .. toctree::
    :maxdepth: 4
 
-   imagetools
+   dfimagetools

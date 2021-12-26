@@ -2,4 +2,4 @@
 """Collection of tools to process storage media images."""
 
 
-__version__ = '20211225'
+__version__ = '20211226'
