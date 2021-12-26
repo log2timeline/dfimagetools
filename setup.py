@@ -177,7 +177,7 @@ def parse_requirements_from_file(path):
 
 
 dfimagetools_description = (
-    'Collection of tools to process storage media images')
+    'Storage media image tools')
 
 dfimagetools_long_description = (
     'Collection of tools to process storage media images.')
