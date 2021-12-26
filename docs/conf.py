@@ -9,10 +9,10 @@ from sphinx.ext import apidoc
 from docutils import nodes
 from docutils import transforms
 
-# Change PYTHONPATH to include imagetools module and dependencies.
+# Change PYTHONPATH to include dfimagetools module and dependencies.
 sys.path.insert(0, os.path.abspath('..'))
 
-import imagetools  # pylint: disable=wrong-import-position
+import dfimagetools  # pylint: disable=wrong-import-position
 
 import utils.dependencies  # pylint: disable=wrong-import-position
 
@@ -57,10 +57,10 @@ napoleon_include_special_with_doc = True
 
 # General information about the project.
 # pylint: disable=redefined-builtin
-project = 'Image tools'
-copyright = 'The Image tools Project Authors'
-version = imagetools.__version__
-release = imagetools.__version__
+project = 'dfImageTools'
+copyright = 'The dfImageTools Project Authors'
+version = dfimagetools.__version__
+release = dfimagetools.__version__
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -83,7 +83,7 @@ pygments_style = 'sphinx'
 html_theme = 'sphinx_rtd_theme'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'imagetoolsdoc'
+htmlhelp_basename = 'dfimagetoolsdoc'
 
 
 # -- Options linkcheck ----------------------------------------------------
@@ -106,7 +106,7 @@ def RunSphinxAPIDoc(app):
         the Sphinx event callback API.
   """
   current_directory = os.path.abspath(os.path.dirname(__file__))
-  module_path = os.path.join(current_directory, '..', 'imagetools')
+  module_path = os.path.join(current_directory, '..', 'dfimagetools')
   api_directory = os.path.join(current_directory, 'sources', 'api')
   apidoc.main(['-o', api_directory, module_path, '--force'])
 

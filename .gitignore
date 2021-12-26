@@ -12,7 +12,7 @@
 /.tox
 /__pycache__
 /build
-/imagetools.egg-info
+/dfimagetools.egg-info
 /dist
 
 # Code review files

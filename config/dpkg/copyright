@@ -1,13 +1,13 @@
 Format: http://dep.debian.net/deps/dep5
-Upstream-Name: imagetools
-Source: https://github.com/log2timeline/imagetools/
+Upstream-Name: dfimagetools
+Source: https://github.com/log2timeline/dfimagetools/
 
 Files: *
-Copyright: 2021 The imagetools project authors.
+Copyright: 2021 The dfimagetools project authors.
 License: Apache-2.0
 
 Files: debian/*
-Copyright: 2021 The imagetools project authors.
+Copyright: 2021 The dfimagetools project authors.
 License: Apache-2.0
 
 License: Apache-2.0

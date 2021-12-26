@@ -10,8 +10,8 @@ from dfvfs.helpers import command_line
 from dfvfs.helpers import volume_scanner
 from dfvfs.lib import errors
 
-from imagetools import file_entry_lister
-from imagetools import helpers
+from dfimagetools import file_entry_lister
+from dfimagetools import helpers
 
 
 def Main():

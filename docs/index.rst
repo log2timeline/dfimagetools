@@ -1,9 +1,9 @@
-Welcome to the imagetools documentation
-========================================
+Welcome to the dfImageTools documentation
+=========================================
 
 Collection of tools to process storage media images.
 
-The source code is available from the `project page <https://github.com/log2timeline/imagetools>`__.
+The source code is available from the `project page <https://github.com/log2timeline/dfimagetools>`__.
 
 .. toctree::
    :maxdepth: 2
@@ -18,7 +18,7 @@ The source code is available from the `project page <https://github.com/log2time
 .. toctree::
    :maxdepth: 2
 
-   API documentation <sources/api/imagetools>
+   API documentation <sources/api/dfimagetools>
 
 
 Indices and tables

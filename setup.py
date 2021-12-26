@@ -29,10 +29,10 @@ if version_tuple < (3, 6):
       'required.').format(sys.version))
   sys.exit(1)
 
-# Change PYTHONPATH to include imagetools so that we can get the version.
+# Change PYTHONPATH to include dfimagetools so that we can get the version.
 sys.path.insert(0, '.')
 
-import imagetools  # pylint: disable=wrong-import-position
+import dfimagetools  # pylint: disable=wrong-import-position
 
 
 if not bdist_msi:
@@ -113,11 +113,11 @@ else:
               '%doc README']
 
           lines.extend([
-              '%{python3_sitelib}/imagetools/*.py',
-              '%{python3_sitelib}/imagetools*.egg-info/*',
+              '%{python3_sitelib}/dfimagetools/*.py',
+              '%{python3_sitelib}/dfimagetools*.egg-info/*',
               '',
               '%exclude %{_prefix}/share/doc/*',
-              '%exclude %{python3_sitelib}/imagetools/__pycache__/*',
+              '%exclude %{python3_sitelib}/dfimagetools/__pycache__/*',
               '%exclude %{_bindir}/*.py'])
 
           python_spec_file.extend(lines)
@@ -176,19 +176,19 @@ def parse_requirements_from_file(path):
     yield name
 
 
-imagetools_description = (
-    'Collection of tools to process storage media images')
+dfimagetools_description = (
+    'Storage media image tools')
 
-imagetools_long_description = (
+dfimagetools_long_description = (
     'Collection of tools to process storage media images.')
 
 setup(
-    name='imagetools',
-    version=imagetools.__version__,
-    description=imagetools_description,
-    long_description=imagetools_long_description,
+    name='dfimagetools',
+    version=dfimagetools.__version__,
+    description=dfimagetools_description,
+    long_description=dfimagetools_long_description,
     license='Apache License, Version 2.0',
-    url='https://github.com/log2timeline/imagetools',
+    url='https://github.com/log2timeline/dfimagetools',
     maintainer='Log2Timeline maintainers',
     maintainer_email='log2timeline-maintainers@googlegroups.com',
     cmdclass={
@@ -203,11 +203,11 @@ setup(
     packages=find_packages('.', exclude=[
         'docs', 'tests', 'tests.*', 'tools', 'utils']),
     package_dir={
-        'imagetools': 'imagetools'
+        'dfimagetools': 'dfimagetools'
     },
     scripts=glob.glob(os.path.join('tools', '[a-z]*.py')),
     data_files=[
-        ('share/doc/imagetools', [
+        ('share/doc/dfimagetools', [
             'LICENSE', 'README']),
     ],
     install_requires=parse_requirements_from_file('requirements.txt'),

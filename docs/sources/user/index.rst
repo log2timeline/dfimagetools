@@ -2,8 +2,8 @@
 Getting started
 ###############
 
-To be able to use imagetools you first need to install it. There are multiple
-ways to install imagetools, check the following instructions for more detail.
+To be able to use dfImageTools you first need to install it. There are multiple
+ways to install dfImageTools, check the following instructions for more detail.
 
 .. toctree::
    :maxdepth: 2
