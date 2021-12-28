@@ -230,9 +230,19 @@ class FileEntryLister(volume_scanner.VolumeScanner):
             owner_identifier, group_identifier, size, access_time,
             modification_time, change_time, creation_time])
 
+    parent_file_reference = None
+    if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+      mft_attribute = getattr(file_entry.path_spec, 'mft_attribute', None)
+      if mft_attribute:
+        fsntfs_file_entry = file_entry.GetNTFSFileEntry()
+        parent_file_reference = (
+            fsntfs_file_entry.get_parent_file_reference_by_attribute_index(
+                mft_attribute))
+
     for attribute in file_entry.attributes:
       if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
-        if attribute.name == file_entry.name:
+        if (attribute.name == file_entry.name and
+            attribute.parent_file_reference == parent_file_reference):
           attribute_name_value = '{0:s} ($FILE_NAME)'.format(
               file_entry_name_value)
 
