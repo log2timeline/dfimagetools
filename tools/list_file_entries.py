@@ -85,7 +85,6 @@ def Main():
       level=logging.INFO, format='[%(levelname)s] %(message)s')
 
   mediator = command_line.CLIVolumeScannerMediator()
-  entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
 
   volume_scanner_options = volume_scanner.VolumeScannerOptions()
   volume_scanner_options.partitions = mediator.ParseVolumeIdentifiersString(
@@ -100,6 +99,7 @@ def Main():
   volume_scanner_options.volumes = mediator.ParseVolumeIdentifiersString(
       options.volumes)
 
+  entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
   return_value = True
 
   try:
