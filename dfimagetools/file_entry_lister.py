@@ -12,6 +12,7 @@ from dfvfs.analyzer import fvde_analyzer_helper
 from dfvfs.helpers import volume_scanner
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
+from dfvfs.volume import factory as dfvfs_volume_system_factory
 
 
 try:
@@ -98,32 +99,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     return ''.join(file_mode)
 
-  def _GetBodyfileName(self, path_spec, path_segments):
-    """Retrieves a bodyfile name value.
-
-    Args:
-      path_spec (dfvfs.PathSpec): path specification of the file entry.
-      path_segments (list[str]): path segments of the full path of the file
-          entry.
-
-    Returns:
-      str: bodyfile name value.
-    """
-    name_value = ''
-
-    if path_spec.HasParent():
-      parent_path_spec = path_spec.parent
-      if parent_path_spec and parent_path_spec.type_indicator in (
-          dfvfs_definitions.PARTITION_TABLE_TYPE_INDICATORS):
-        name_value = ''.join([name_value, parent_path_spec.location])
-
-    path_segments = [
-        segment.translate(self._bodyfile_escape_characters)
-        for segment in path_segments]
-    name_value = ''.join([name_value, '/'.join(path_segments)])
-
-    return name_value or '/'
-
   def _GetBodyfileTimestamp(self, date_time):
     """Retrieves a bodyfile timestamp representation of a date time value.
 
@@ -173,7 +148,9 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     Yields:
       tuple[dfvfs.FileEntry, list[str]]: file entry and path segments.
     """
-    path_segments = parent_path_segments + [file_entry.name]
+    path_segments = list(parent_path_segments)
+    if not file_entry.IsRoot():
+      path_segments.append(file_entry.name)
 
     if not self._list_only_files or file_entry.IsFile():
       yield file_entry, path_segments
@@ -225,8 +202,10 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     # TODO: add support to calculate MD5
     md5_string = '0'
 
-    file_entry_name_value = self._GetBodyfileName(
-        file_entry.path_spec, path_segments)
+    path_segments = [
+        segment.translate(self._bodyfile_escape_characters)
+        for segment in path_segments]
+    file_entry_name_value = '/'.join(path_segments) or '/'
 
     if file_entry.link:
       name_value = '{0:s} -> {1:s}'.format(
@@ -288,5 +267,34 @@ class FileEntryLister(volume_scanner.VolumeScanner):
             path_specification_string))
         return
 
-      for result in self._ListFileEntry(file_system, file_entry, []):
+      base_path_segments = ['']
+      if base_path_spec.HasParent() and base_path_spec.parent:
+        if base_path_spec.parent.type_indicator in (
+            dfvfs_definitions.TYPE_INDICATOR_APFS_CONTAINER,
+            dfvfs_definitions.TYPE_INDICATOR_GPT,
+            dfvfs_definitions.TYPE_INDICATOR_LVM):
+          volume_system = dfvfs_volume_system_factory.Factory.NewVolumeSystem(
+              base_path_spec.parent.type_indicator)
+          volume_system.Open(base_path_spec.parent)
+
+          volume = volume_system.GetVolumeByIdentifier(
+              base_path_spec.parent.location[1:])
+
+          if base_path_spec.parent.type_indicator == (
+              dfvfs_definitions.TYPE_INDICATOR_GPT):
+            volume_identifier_prefix = 'gpt'
+          else:
+            volume_identifier_prefix = volume_system.VOLUME_IDENTIFIER_PREFIX
+
+          volume_identifier = volume.GetAttribute('identifier')
+
+          base_path_segments = ['', '{0:s}{{{1:s}}}'.format(
+              volume_identifier_prefix, volume_identifier.value)]
+
+        elif base_path_spec.parent.type_indicator == (
+            dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION):
+          base_path_segments = base_path_spec.parent.location.split('/')
+
+      for result in self._ListFileEntry(
+          file_system, file_entry, base_path_segments):
         yield result
