@@ -44,6 +44,9 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       0xa000: 'l',
       0xc000: 's'}
 
+  _FILE_ATTRIBUTE_READONLY = 1
+  _FILE_ATTRIBUTE_SYSTEM = 4
+
   _TIMESTAMP_FORMAT_STRINGS = {
       dfdatetime_definitions.PRECISION_1_NANOSECOND: '{0:d}.{1:09d}',
       dfdatetime_definitions.PRECISION_100_NANOSECONDS: '{0:d}.{1:07d}',
@@ -170,6 +173,17 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     Yields:
       str: bodyfile entry.
     """
+    file_attribute_flags = None
+    parent_file_reference = None
+    if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+      mft_attribute_index = getattr(file_entry.path_spec, 'mft_attribute', None)
+      if mft_attribute_index is not None:
+        fsntfs_file_entry = file_entry.GetNTFSFileEntry()
+        file_attribute_flags = fsntfs_file_entry.file_attribute_flags
+        parent_file_reference = (
+            fsntfs_file_entry.get_parent_file_reference_by_attribute_index(
+                mft_attribute_index))
+
     stat_attribute = file_entry.GetStatAttribute()
 
     if stat_attribute.inode_number is None:
@@ -181,8 +195,19 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     else:
       inode_string = '{0:d}'.format(stat_attribute.inode_number)
 
-    mode = getattr(stat_attribute, 'mode', None) or 0
-    mode_string = self._GetBodyfileModeString(mode)
+    if file_entry.type_indicator != dfvfs_definitions.TYPE_INDICATOR_NTFS:
+      mode = getattr(stat_attribute, 'mode', None) or 0
+      mode_string = self._GetBodyfileModeString(mode)
+
+    elif file_attribute_flags is None:
+      mode_string = '---------'
+
+    elif (file_attribute_flags & self._FILE_ATTRIBUTE_READONLY or
+          file_attribute_flags & self._FILE_ATTRIBUTE_SYSTEM):
+      mode_string = 'r-xr-xr-x'
+
+    else:
+      mode_string = 'rwxrwxrwx'
 
     owner_identifier = ''
     if stat_attribute.owner_identifier is not None:
@@ -208,8 +233,10 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     file_entry_name_value = '/'.join(path_segments) or '/'
 
     if file_entry.link:
+      file_entry_link = file_entry.link.translate(
+          self._bodyfile_escape_characters)
       name_value = '{0:s} -> {1:s}'.format(
-          file_entry_name_value, file_entry.link)
+          file_entry_name_value, file_entry_link)
     else:
       name_value = file_entry_name_value
 
@@ -229,15 +256,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
             md5_string, data_stream_name_value, inode_string, mode_string,
             owner_identifier, group_identifier, size, access_time,
             modification_time, change_time, creation_time])
-
-    parent_file_reference = None
-    if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
-      mft_attribute = getattr(file_entry.path_spec, 'mft_attribute', None)
-      if mft_attribute:
-        fsntfs_file_entry = file_entry.GetNTFSFileEntry()
-        parent_file_reference = (
-            fsntfs_file_entry.get_parent_file_reference_by_attribute_index(
-                mft_attribute))
 
     for attribute in file_entry.attributes:
       if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
