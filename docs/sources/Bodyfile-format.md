@@ -93,7 +93,7 @@ used by the SleuthKit tools.
 The mode_as_string value contains a POSIX file mode represented as a string, for
 example 'drwxr-xr-x'.
 
-Where the first character represents the file entry type:
+The first character represents the file entry type:
 
 * '-' to indicate a "regular" file (S_IFREG) or unknown type
 * 'b' to indicate a block device (S_IFBLK)
@@ -111,7 +111,20 @@ group and other.
 
 The SleuthKit specific `[-dlr]/` prefix is not used by the dfImageTools project.
 
-For NTFS dfImageTools currently sets the mode_as_string value to '----------'.
+### NTFS
+
+For NTFS dfImageTools uses the following approximation to generate
+a mode_as_string value.
+
+The first character represents the file entry type:
+
+* '-' to indicate a "regular" file or unknown type
+* 'd' to indicate a directory, if the file entry has an \$I30 index and is not a symbolic link
+* 'l' to indicate a symbolic link, if the file entry has a \$REPARSE_POINT attribute with tag 0xa000000c
+
+The remaining characters are based on the file attribute flags and will be
+'r-xr-xr-x' if FILE_ATTRIBUTE_READONLY or FILE_ATTRIBUTE_SYSTEM is set or
+'rwxrwxrwx' otherwise.
 
 ## Time values
 
