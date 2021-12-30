@@ -124,6 +124,36 @@ class FileEntryListerTest(test_lib.BaseTestCase):
     self.assertEqual(len(bodyfile_entries), 1)
     self.assertEqual(bodyfile_entries[0], expected_bodyfile_entry)
 
+  def testGetBodyfileEntriesWithNTFSImage(self):
+    """Tests the GetBodyfileEntries function with a NTFS image."""
+    path = self._GetTestFilePath(['ntfs.vhd'])
+    self._SkipIfPathNotExists(path)
+
+    bodyfile_path = self._GetTestFilePath(['ntfs.vhd.bodyfile'])
+    self._SkipIfPathNotExists(bodyfile_path)
+
+    test_lister = file_entry_lister.FileEntryLister()
+
+    base_path_specs = test_lister.GetBasePathSpecs(path)
+    file_entries = list(test_lister.ListFileEntries(base_path_specs))
+
+    self.assertEqual(len(file_entries), 40)
+
+    bodyfile_entries = []
+    for file_entry, path_segments in file_entries:
+      for bodyfile_entry in test_lister.GetBodyfileEntries(
+          file_entry, path_segments):
+        bodyfile_entries.append(bodyfile_entry)
+
+    self.assertEqual(len(bodyfile_entries), 89)
+
+    with open(bodyfile_path, 'r', encoding='utf-8') as file_object:
+      expected_bodyfile_entries = [
+          entry for entry in file_object.read().split('\n') if entry]
+
+    self.assertEqual(len(bodyfile_entries), len(expected_bodyfile_entries))
+    self.assertEqual(bodyfile_entries, expected_bodyfile_entries)
+
   def testListFileEntries(self):
     """Tests the ListFileEntries function."""
     path = self._GetTestFilePath(['image.qcow2'])
