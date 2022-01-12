@@ -4,6 +4,22 @@ dfimagetools package
 Submodules
 ----------
 
+dfimagetools.bodyfile module
+----------------------------
+
+.. automodule:: dfimagetools.bodyfile
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dfimagetools.decorators module
+------------------------------
+
+.. automodule:: dfimagetools.decorators
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 dfimagetools.file\_entry\_lister module
 ---------------------------------------
 
