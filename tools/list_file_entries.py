@@ -10,6 +10,7 @@ from dfvfs.helpers import command_line
 from dfvfs.helpers import volume_scanner
 from dfvfs.lib import errors
 
+from dfimagetools import bodyfile
 from dfimagetools import file_entry_lister
 from dfimagetools import helpers
 
@@ -21,7 +22,7 @@ def Main():
     bool: True if successful or False if not.
   """
   argument_parser = argparse.ArgumentParser(description=(
-      'Lists file entries in a directory or storage media image.'))
+      'Lists metadata of file entries in a directory or storage media image.'))
 
   argument_parser.add_argument(
       '--back_end', '--back-end', dest='back_end', action='store',
@@ -110,9 +111,10 @@ def Main():
       print('')
       return False
 
+    bodyfile_generator = bodyfile.BodyfileGenerator()
     for file_entry, path_segments in entry_lister.ListFileEntries(
         base_path_specs):
-      for bodyfile_entry in entry_lister.GetBodyfileEntries(
+      for bodyfile_entry in bodyfile_generator.GetEntries(
           file_entry, path_segments):
         print(bodyfile_entry)
 
