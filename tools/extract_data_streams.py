@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Script to list file entries."""
+"""Script to extract data streams."""
 
 import argparse
 import logging
+import os
 import sys
 
 from artifacts import reader as artifacts_reader
@@ -14,7 +15,7 @@ from dfvfs.helpers import volume_scanner
 from dfvfs.lib import errors
 
 from dfimagetools import artifact_filters
-from dfimagetools import bodyfile
+from dfimagetools import data_stream_writer
 from dfimagetools import file_entry_lister
 from dfimagetools import helpers
 from dfimagetools import resources
@@ -27,7 +28,7 @@ def Main():
     bool: True if successful or False if not.
   """
   argument_parser = argparse.ArgumentParser(description=(
-      'Lists metadata of file entries in a storage media image.'))
+      'Extracts data streams from a storage media image.'))
 
   # TODO: add filter group
   argument_parser.add_argument(
@@ -50,9 +51,10 @@ def Main():
 
   # TODO: add output group
   argument_parser.add_argument(
-      '--output_format', '--output-format', dest='output_format',
-      action='store', metavar='FORMAT', default='bodyfile', help=(
-          'output format, default is bodyfile.'))
+      '-t', '--target', dest='target', action='store', metavar='PATH',
+      default=None, help=(
+          'target (or destination) path of a directory where the extracted '
+          'data streams should be stored.'))
 
   # TODO: add source group
   argument_parser.add_argument(
@@ -99,13 +101,6 @@ def Main():
     print('')
     return False
 
-  if options.output_format != 'bodyfile':
-    print('Unsupported output format: {0:s}.'.format(options.output_format))
-    print('')
-    argument_parser.print_help()
-    print('')
-    return False
-
   if options.artifact_filters:
     if (not options.artifact_definitions and
         not options.custom_artifact_definitions):
@@ -113,6 +108,25 @@ def Main():
             'artifact definitions were provided.')
       print('')
       return False
+
+  # TODO: improve this, for now this script needs at least 1 filter.
+  if not options.artifact_filters:
+    print('[ERROR] no artifact filters were specified.')
+    print('')
+    return False
+
+  target_path = options.target
+  if not target_path:
+    target_path = '{0:s}.extracted'.format(os.path.basename(options.source))
+    target_path = os.path.join(os.getcwd(), target_path)
+
+  if not os.path.exists(target_path):
+    os.makedirs(target_path)
+
+  elif not os.path.isdir(target_path):
+    print('[ERROR] target path is not a directory.')
+    print('')
+    return False
 
   helpers.SetDFVFSBackEnd(options.back_end)
 
@@ -144,49 +158,52 @@ def Main():
       print('')
       return False
 
-    find_specs = []
-    if options.artifact_filters:
-      registry = artifacts_registry.ArtifactDefinitionsRegistry()
-      reader = artifacts_reader.YamlArtifactsReader()
+    registry = artifacts_registry.ArtifactDefinitionsRegistry()
+    reader = artifacts_reader.YamlArtifactsReader()
 
-      if options.artifact_definitions:
-        registry.ReadFromDirectory(reader, options.artifact_definitions)
-      if options.custom_artifact_definitions:
-        registry.ReadFromDirectory(reader, options.custom_artifact_definitions)
+    if options.artifact_definitions:
+      registry.ReadFromDirectory(reader, options.artifact_definitions)
+    if options.custom_artifact_definitions:
+      registry.ReadFromDirectory(reader, options.custom_artifact_definitions)
 
-      # TODO: add support for determining environment variables and user
-      # accounts.
-      system_root_environment_variable = resources.EnvironmentVariable(
-          case_sensitive=False, name='SystemRoot', value='C:\\Windows')
-      windir_environment_variable = resources.EnvironmentVariable(
-          case_sensitive=False, name='WinDir', value='C:\\Windows')
+    # TODO: add support for determining environment variables and user
+    # accounts.
+    system_root_environment_variable = resources.EnvironmentVariable(
+        case_sensitive=False, name='SystemRoot', value='C:\\Windows')
+    windir_environment_variable = resources.EnvironmentVariable(
+        case_sensitive=False, name='WinDir', value='C:\\Windows')
 
-      environment_variables = [
-          system_root_environment_variable, windir_environment_variable]
+    environment_variables = [
+        system_root_environment_variable, windir_environment_variable]
 
-      filter_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-          registry, environment_variables, [])
+    filter_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
+        registry, environment_variables, [])
 
-      names = options.artifact_filters.split(',')
-      find_specs = list(filter_generator.GetFindSpecs(names))
+    names = options.artifact_filters.split(',')
+    find_specs = list(filter_generator.GetFindSpecs(names))
 
-      if not find_specs:
-        print('[ERROR] an artifact filter was specified but no corresponding '
-              'file system find specifications were generated.')
-        print('')
-        return False
+    if not find_specs:
+      print('[ERROR] an artifact filter was specified but no corresponding '
+            'file system find specifications were generated.')
+      print('')
+      return False
 
-    if find_specs:
-      file_entries_generator = entry_lister.ListFileEntriesWithFindSpecs(
-          base_path_specs, find_specs)
-    else:
-      file_entries_generator = entry_lister.ListFileEntries(base_path_specs)
+    stream_writer = data_stream_writer.DataStreamWriter()
+    for file_entry, path_segments in entry_lister.ListFileEntriesWithFindSpecs(
+        base_path_specs, find_specs):
+      for data_stream in file_entry.data_streams:
+        display_path = stream_writer.GetDisplayPath(
+            path_segments, data_stream.name)
+        destination_path = stream_writer.GetSanitizedPath(
+            path_segments, data_stream.name, target_path)
+        logging.info('Extracting: {0:s} to: {1:s}'.format(
+            display_path, destination_path))
 
-    bodyfile_generator = bodyfile.BodyfileGenerator()
-    for file_entry, path_segments in file_entries_generator:
-      for bodyfile_entry in bodyfile_generator.GetEntries(
-          file_entry, path_segments):
-        print(bodyfile_entry)
+        destination_directory = os.path.dirname(destination_path)
+        os.makedirs(destination_directory, exist_ok=True)
+
+        stream_writer.WriteDataStream(
+            file_entry, data_stream.name, destination_path)
 
   except errors.ScannerError as exception:
     print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
