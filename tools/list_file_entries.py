@@ -6,13 +6,18 @@ import argparse
 import logging
 import sys
 
+from artifacts import reader as artifacts_reader
+from artifacts import registry as artifacts_registry
+
 from dfvfs.helpers import command_line
 from dfvfs.helpers import volume_scanner
 from dfvfs.lib import errors
 
+from dfimagetools import artifact_filters
 from dfimagetools import bodyfile
 from dfimagetools import file_entry_lister
 from dfimagetools import helpers
+from dfimagetools import resources
 
 
 def Main():
@@ -24,14 +29,35 @@ def Main():
   argument_parser = argparse.ArgumentParser(description=(
       'Lists metadata of file entries in a directory or storage media image.'))
 
+  # TODO: add filter group
   argument_parser.add_argument(
-      '--back_end', '--back-end', dest='back_end', action='store',
-      metavar='NTFS', default=None, help='preferred dfVFS back-end.')
+      '--artifact_definitions', '--artifact-definitions',
+      dest='artifact_definitions', type=str, metavar='PATH', action='store',
+      help=('Path to a directory or file containing the artifact definition '
+            '.yaml files.'))
 
+  argument_parser.add_argument(
+      '--artifact_filters', '--artifact-filters', dest='artifact_filters',
+      type=str, default=None, metavar='NAMES', action='store', help=(
+          'Comma separated list of names of artifact definitions to extract.'))
+
+  argument_parser.add_argument(
+      '--custom_artifact_definitions', '--custom-artifact-definitions',
+      dest='custom_artifact_definitions', type=str, metavar='PATH',
+      action='store', help=(
+          'Path to a directory or file containing custom artifact definition '
+          '.yaml files. '))
+
+  # TODO: add output group
   argument_parser.add_argument(
       '--output_format', '--output-format', dest='output_format',
       action='store', metavar='FORMAT', default='bodyfile', help=(
           'output format, default is bodyfile.'))
+
+  # TODO: add source group
+  argument_parser.add_argument(
+      '--back_end', '--back-end', dest='back_end', action='store',
+      metavar='NTFS', default=None, help='preferred dfVFS back-end.')
 
   argument_parser.add_argument(
       '--partitions', '--partition', dest='partitions', action='store',
@@ -80,6 +106,16 @@ def Main():
     print('')
     return False
 
+  if options.artifact_filters:
+    if (not options.artifact_definitions and
+        not options.custom_artifact_definitions):
+      print('[ERROR] artifact filters were specified but no paths to '
+            'artifact definitions were provided.')
+      print('')
+      argument_parser.print_help()
+      print('')
+      return False
+
   helpers.SetDFVFSBackEnd(options.back_end)
 
   logging.basicConfig(
@@ -101,7 +137,6 @@ def Main():
       options.volumes)
 
   entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
-  return_value = True
 
   try:
     base_path_specs = entry_lister.GetBasePathSpecs(
@@ -111,24 +146,58 @@ def Main():
       print('')
       return False
 
+    find_specs = []
+    if options.artifact_filters:
+      registry = artifacts_registry.ArtifactDefinitionsRegistry()
+      reader = artifacts_reader.YamlArtifactsReader()
+
+      if options.artifact_definitions:
+        registry.ReadFromDirectory(reader, options.artifact_definitions)
+      if options.custom_artifact_definitions:
+        registry.ReadFromDirectory(reader, options.custom_artifact_definitions)
+
+      # TODO: add support for determining environment variables and user
+      # accounts.
+      system_root_environment_variable = resources.EnvironmentVariable(
+          case_sensitive=False, name='SystemRoot', value='C:\\Windows')
+      windir_environment_variable = resources.EnvironmentVariable(
+          case_sensitive=False, name='WinDir', value='C:\\Windows')
+
+      environment_variables = [
+          system_root_environment_variable, windir_environment_variable]
+
+      filter_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
+          registry, environment_variables, [])
+
+      names = options.artifact_filters.split(',')
+      find_specs = list(filter_generator.GetFindSpecs(names))
+
+      if not find_specs:
+        print('[ERROR] an artifact filter was specified but no corresponding '
+              'file system find specifications were generated.')
+        return False
+
+    if find_specs:
+      file_entries_generator = entry_lister.ListFileEntriesWithFindSpecs(
+          base_path_specs, find_specs)
+    else:
+      file_entries_generator = entry_lister.ListFileEntries(base_path_specs)
+
     bodyfile_generator = bodyfile.BodyfileGenerator()
-    for file_entry, path_segments in entry_lister.ListFileEntries(
-        base_path_specs):
+    for file_entry, path_segments in file_entries_generator:
       for bodyfile_entry in bodyfile_generator.GetEntries(
           file_entry, path_segments):
         print(bodyfile_entry)
 
   except errors.ScannerError as exception:
-    return_value = False
-
     print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
+    return False
 
   except KeyboardInterrupt:
-    return_value = False
-
     print('Aborted by user.', file=sys.stderr)
+    return False
 
-  return return_value
+  return True
 
 
 if __name__ == '__main__':

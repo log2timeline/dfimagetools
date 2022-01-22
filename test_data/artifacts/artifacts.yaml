@@ -1,0 +1,32 @@
+# Artifact definitions.
+
+name: TestGroup1
+doc: Test group artifact definition
+sources:
+- type: ARTIFACT_GROUP
+  attributes:
+    names:
+    - 'TestFile1'
+    - 'TestFile2'
+labels: [System]
+supported_os: [Windows]
+---
+name: TestFile1
+doc: Test file artifact definition
+sources:
+- type: FILE
+  attributes:
+    paths: ['%%users.homedir%%/AUTHORS']
+    separator: '/'
+labels: [System]
+supported_os: [Linux]
+---
+name: TestFile2
+doc: Test file artifact definition
+sources:
+- type: FILE
+  attributes:
+    paths: ['%%environ_systemroot%%\test_data\*.evtx']
+    separator: '\'
+labels: [System]
+supported_os: [Windows]
