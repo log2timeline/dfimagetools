@@ -58,7 +58,7 @@ napoleon_include_special_with_doc = True
 # General information about the project.
 # pylint: disable=redefined-builtin
 project = 'dfImageTools'
-copyright = 'The dfImageTools Project Authors'
+copyright = 'The dfImageTools authors'
 version = dfimagetools.__version__
 release = dfimagetools.__version__
 
