@@ -18,7 +18,7 @@ from dfimagetools import artifact_filters
 from dfimagetools import data_stream_writer
 from dfimagetools import file_entry_lister
 from dfimagetools import helpers
-from dfimagetools import windows_registry_collector
+from dfimagetools import windows_registry
 
 
 def Main():
@@ -184,9 +184,8 @@ def Main():
         if not windows_directory:
           environment_variables = []
         else:
-          winregistry_collector = (
-              windows_registry_collector.WindowsRegistryCollector(
-                  base_path_spec, windows_directory))
+          winregistry_collector = windows_registry.WindowsRegistryCollector(
+              base_path_spec, windows_directory)
 
           environment_variables = (
               winregistry_collector.CollectSystemEnvironmentVariables())

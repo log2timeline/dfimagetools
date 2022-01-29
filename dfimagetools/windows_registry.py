@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Helper to collect information from the Windows Registry."""
+"""Helpers to collect information from the Windows Registry."""
 
 from dfvfs.file_io import file_io as dfvfs_file_io
 from dfvfs.helpers import windows_path_resolver
