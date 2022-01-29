@@ -18,7 +18,7 @@ from dfimagetools import artifact_filters
 from dfimagetools import data_stream_writer
 from dfimagetools import file_entry_lister
 from dfimagetools import helpers
-from dfimagetools import resources
+from dfimagetools import windows_registry
 
 
 def Main():
@@ -148,7 +148,25 @@ def Main():
   volume_scanner_options.volumes = mediator.ParseVolumeIdentifiersString(
       options.volumes)
 
+  if options.artifact_filters:
+    registry = artifacts_registry.ArtifactDefinitionsRegistry()
+    reader = artifacts_reader.YamlArtifactsReader()
+
+    if options.artifact_definitions:
+      if os.path.isdir(options.artifact_definitions):
+        registry.ReadFromDirectory(reader, options.artifact_definitions)
+      elif os.path.isfile(options.artifact_definitions):
+        registry.ReadFromFile(reader, options.artifact_definitions)
+
+    if options.custom_artifact_definitions:
+      if os.path.isdir(options.custom_artifact_definitions):
+        registry.ReadFromDirectory(
+            reader, options.custom_artifact_definitions)
+      elif os.path.isfile(options.custom_artifact_definitions):
+        registry.ReadFromFile(reader, options.custom_artifact_definitions)
+
   entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
+  find_specs_generated = False
 
   try:
     base_path_specs = entry_lister.GetBasePathSpecs(
@@ -158,52 +176,48 @@ def Main():
       print('')
       return False
 
-    registry = artifacts_registry.ArtifactDefinitionsRegistry()
-    reader = artifacts_reader.YamlArtifactsReader()
+    for base_path_spec in base_path_specs:
+      if not options.artifact_filters:
+        find_specs = []
+      else:
+        windows_directory = entry_lister.GetWindowsDirectory(base_path_spec)
+        if not windows_directory:
+          environment_variables = []
+        else:
+          winregistry_collector = windows_registry.WindowsRegistryCollector(
+              base_path_spec, windows_directory)
 
-    if options.artifact_definitions:
-      registry.ReadFromDirectory(reader, options.artifact_definitions)
-    if options.custom_artifact_definitions:
-      registry.ReadFromDirectory(reader, options.custom_artifact_definitions)
+          environment_variables = (
+              winregistry_collector.CollectSystemEnvironmentVariables())
 
-    # TODO: add support for determining environment variables and user
-    # accounts.
-    system_root_environment_variable = resources.EnvironmentVariable(
-        case_sensitive=False, name='SystemRoot', value='C:\\Windows')
-    windir_environment_variable = resources.EnvironmentVariable(
-        case_sensitive=False, name='WinDir', value='C:\\Windows')
+        filter_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
+            registry, environment_variables, [])
 
-    environment_variables = [
-        system_root_environment_variable, windir_environment_variable]
+        names = options.artifact_filters.split(',')
+        find_specs = list(filter_generator.GetFindSpecs(names))
+        if not find_specs:
+          continue
 
-    filter_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, environment_variables, [])
+        find_specs_generated = True
 
-    names = options.artifact_filters.split(',')
-    find_specs = list(filter_generator.GetFindSpecs(names))
+      file_entries_generator = entry_lister.ListFileEntriesWithFindSpecs(
+          [base_path_spec], find_specs)
 
-    if not find_specs:
-      print('[ERROR] an artifact filter was specified but no corresponding '
-            'file system find specifications were generated.')
-      print('')
-      return False
+      stream_writer = data_stream_writer.DataStreamWriter()
+      for file_entry, path_segments in file_entries_generator:
+        for data_stream in file_entry.data_streams:
+          display_path = stream_writer.GetDisplayPath(
+              path_segments, data_stream.name)
+          destination_path = stream_writer.GetSanitizedPath(
+              path_segments, data_stream.name, target_path)
+          logging.info('Extracting: {0:s} to: {1:s}'.format(
+              display_path, destination_path))
 
-    stream_writer = data_stream_writer.DataStreamWriter()
-    for file_entry, path_segments in entry_lister.ListFileEntriesWithFindSpecs(
-        base_path_specs, find_specs):
-      for data_stream in file_entry.data_streams:
-        display_path = stream_writer.GetDisplayPath(
-            path_segments, data_stream.name)
-        destination_path = stream_writer.GetSanitizedPath(
-            path_segments, data_stream.name, target_path)
-        logging.info('Extracting: {0:s} to: {1:s}'.format(
-            display_path, destination_path))
+          destination_directory = os.path.dirname(destination_path)
+          os.makedirs(destination_directory, exist_ok=True)
 
-        destination_directory = os.path.dirname(destination_path)
-        os.makedirs(destination_directory, exist_ok=True)
-
-        stream_writer.WriteDataStream(
-            file_entry, data_stream.name, destination_path)
+          stream_writer.WriteDataStream(
+              file_entry, data_stream.name, destination_path)
 
   except errors.ScannerError as exception:
     print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
@@ -212,6 +226,12 @@ def Main():
 
   except KeyboardInterrupt:
     print('Aborted by user.', file=sys.stderr)
+    print('')
+    return False
+
+  if options.artifact_filters and not find_specs_generated:
+    print('[ERROR] an artifact filter was specified but no corresponding '
+          'file system find specifications were generated.')
     print('')
     return False
 

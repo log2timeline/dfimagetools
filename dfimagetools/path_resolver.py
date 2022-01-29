@@ -44,17 +44,23 @@ class PathResolver(object):
     lookup_table = {}
     if environment_variables:
       for environment_variable in environment_variables:
-        attribute_name = environment_variable.name.upper()
         attribute_value = environment_variable.value
         if not isinstance(attribute_value, str):
           continue
+
+        # Make the attribute name is in upper case and without the leading and
+        # trailing %-characters.
+        attribute_name = environment_variable.name.upper()
+        if (len(attribute_name) >= 2 and attribute_name[0] == '%' and
+            attribute_name[-1] == '%'):
+          attribute_name = attribute_name[1:-1]
 
         lookup_table[attribute_name] = attribute_value
 
     # Make a copy of path_segments since this loop can change it.
     for index, path_segment in enumerate(list(path_segments)):
-      if (len(path_segment) <= 2 or not path_segment.startswith('%') or
-          not path_segment.endswith('%')):
+      if (len(path_segment) <= 2 or not path_segment[0] == '%' or
+          not path_segment[-1] == '%'):
         continue
 
       path_segment_upper_case = path_segment.upper()

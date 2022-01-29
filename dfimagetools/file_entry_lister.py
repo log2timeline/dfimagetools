@@ -6,6 +6,7 @@ import re
 
 from dfvfs.helpers import file_system_searcher
 from dfvfs.helpers import volume_scanner
+from dfvfs.helpers import windows_path_resolver
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.path import factory as dfvfs_path_spec_factory
 from dfvfs.resolver import resolver as dfvfs_resolver
@@ -19,6 +20,13 @@ class FileEntryLister(volume_scanner.VolumeScanner):
   """File entry lister."""
 
   _UNICODE_SURROGATES_RE = re.compile('[\ud800-\udfff]')
+
+  _WINDOWS_DIRECTORIES = frozenset([
+      'C:\\Windows',
+      'C:\\WINNT',
+      'C:\\WTSRV',
+      'C:\\WINNT35',
+  ])
 
   def __init__(self, mediator=None):
     """Initializes a file entry lister.
@@ -127,8 +135,33 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     """
     return self._bodyfile_generator.GetEntries(file_entry, path_segments)
 
+  def GetWindowsDirectory(self, base_path_spec):
+    """Retrieves the Windows directory from the base path specification.
+
+    Args:
+      base_path_spec (dfvfs.PathSpec): source path specification.
+
+    Returns:
+      str: path of the Windows directory or None if not available.
+    """
+    if base_path_spec.type_indicator == dfvfs_definitions.TYPE_INDICATOR_OS:
+      mount_point = base_path_spec
+    else:
+      mount_point = base_path_spec.parent
+
+    file_system = dfvfs_resolver.Resolver.OpenFileSystem(base_path_spec)
+    path_resolver = windows_path_resolver.WindowsPathResolver(
+        file_system, mount_point)
+
+    for windows_path in self._WINDOWS_DIRECTORIES:
+      windows_path_spec = path_resolver.ResolvePath(windows_path)
+      if windows_path_spec is not None:
+        return windows_path
+
+    return None
+
   def ListFileEntries(self, base_path_specs):
-    """Lists file entries in the base path specification.
+    """Lists file entries in the base path specifications.
 
     Args:
       base_path_specs (list[dfvfs.PathSpec]): source path specifications.
@@ -152,7 +185,9 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         yield result
 
   def ListFileEntriesWithFindSpecs(self, base_path_specs, find_specs):
-    """Lists file entries in the base path specification.
+    """Lists file entries in the base path specifications.
+
+    This method filters file entries based on the find specifications.
 
     Args:
       base_path_specs (list[dfvfs.PathSpec]): source path specification.
