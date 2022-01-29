@@ -1,0 +1,13 @@
+Acknowledgements: dfimagetools
+
+Copyright 2021 The dfImageTools Project Authors.
+Please see the AUTHORS file for details on individual authors.
+
+dfImageTools originates from the Plaso project [https://github.com/log2timeline/plaso].
+It was largely rewritten and made into a stand-alone project to provide more
+flexibility and allow other projects to make use of the storage media image
+functionality.
+
+dfImageTools is currently developed and maintained by:
+* Daniel White
+* Joachim Metz
