@@ -29,7 +29,7 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     registry.ReadFromDirectory(reader, test_artifacts_path)
 
     environment_variables = [resources.EnvironmentVariable(
-        case_sensitive=False, name='SystemRoot', value='C:\\Windows')]
+        case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
 
     # Test file artifact definition type.
     test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
@@ -37,7 +37,6 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     find_specs = list(test_generator._BuildFindSpecsFromArtifactDefinition(
         'TestFile2'))
 
-    # Should build 1 find_spec.
     self.assertEqual(len(find_specs), 1)
 
     # Location segments should be equivalent to \Windows\test_data\*.evtx.
@@ -54,7 +53,6 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     find_specs = list(test_generator._BuildFindSpecsFromArtifactDefinition(
         'TestGroup1'))
 
-    # Should build 1 find_spec.
     self.assertEqual(len(find_specs), 1)
 
   def testBuildFindSpecsFromFileSourcePath(self):
@@ -69,14 +67,13 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
 
     # Test expansion of environment variables.
     environment_variables = [resources.EnvironmentVariable(
-        case_sensitive=False, name='SystemRoot', value='C:\\Windows')]
+        case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
 
     test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
         registry, environment_variables, [])
     find_specs = list(test_generator._BuildFindSpecsFromFileSourcePath(
         '%%environ_systemroot%%\\test_data\\*.evtx', '\\'))
 
-    # Should build 1 find_spec.
     self.assertEqual(len(find_specs), 1)
 
     # Location segments should be equivalent to \Windows\test_data\*.evtx.
@@ -175,13 +172,12 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     registry.ReadFromDirectory(reader, test_artifacts_path)
 
     environment_variables = [resources.EnvironmentVariable(
-        case_sensitive=False, name='SystemRoot', value='C:\\Windows')]
+        case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
 
     test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
         registry, environment_variables, [])
     find_specs = list(test_generator.GetFindSpecs(['TestFile2']))
 
-    # Should build 1 find_spec.
     self.assertEqual(len(find_specs), 1)
 
     # Location segments should be equivalent to \Windows\test_data\*.evtx.

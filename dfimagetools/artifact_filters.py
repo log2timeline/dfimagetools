@@ -45,10 +45,8 @@ class ArtifactDefinitionFiltersGenerator(object):
         source_type = source.type_indicator
         if source_type not in (
             artifacts_definitions.TYPE_INDICATOR_ARTIFACT_GROUP,
-            artifacts_definitions.TYPE_INDICATOR_FILE):
-          logging.warning((
-              'Unsupported source type: {0:s} in artifact definition: '
-              '{1:s}"').format(source_type, name))
+            artifacts_definitions.TYPE_INDICATOR_FILE,
+            artifacts_definitions.TYPE_INDICATOR_PATH):
           continue
 
         if source_type == artifacts_definitions.TYPE_INDICATOR_ARTIFACT_GROUP:
@@ -57,7 +55,9 @@ class ArtifactDefinitionFiltersGenerator(object):
                 source_name):
               yield find_spec
 
-        elif source_type == artifacts_definitions.TYPE_INDICATOR_FILE:
+        elif source_type in (
+            artifacts_definitions.TYPE_INDICATOR_FILE,
+            artifacts_definitions.TYPE_INDICATOR_PATH):
           for source_path in set(source.paths):
             for find_spec in self._BuildFindSpecsFromFileSourcePath(
                 source_path, source.separator):
@@ -84,9 +84,6 @@ class ArtifactDefinitionFiltersGenerator(object):
               path, path_separator, self._environment_variables)
 
         if not path.startswith(path_separator):
-          logging.warning((
-              'The path filter must be defined as an absolute path: '
-              '"{0:s}"').format(path))
           continue
 
         try:
@@ -102,7 +99,7 @@ class ArtifactDefinitionFiltersGenerator(object):
         yield find_spec
 
   def GetFindSpecs(self, names):
-    """Retrieves find specifications based on artifact definitions.
+    """Retrieves find specifications for one or more artifact definitions.
 
     Args:
       names (list[str]): names of the artifact definitions to filter on.
