@@ -43,6 +43,26 @@ class BodyfileGenerator(object):
     super(BodyfileGenerator, self).__init__()
     self._bodyfile_escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
 
+  def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
+    """Retrieves a bodyfile string representation of file attributes flags.
+
+    Args:
+      file_type (str): bodyfile file type identifier.
+      file_attribute_flags (int): file attribute flags.
+
+    Returns:
+      str: bodyfile representation of the file attributes flags.
+    """
+    string_parts = [file_type, 'r', '-', 'x', 'r', '-', 'x', 'r', '-', 'x']
+
+    if (not file_attribute_flags & self._FILE_ATTRIBUTE_READONLY and
+        not file_attribute_flags & self._FILE_ATTRIBUTE_SYSTEM):
+      string_parts[2] = 'w'
+      string_parts[5] = 'w'
+      string_parts[8] = 'w'
+
+    return ''.join(string_parts)
+
   def _GetModeString(self, mode):
     """Retrieves a bodyfile string representation of a mode.
 
@@ -50,34 +70,34 @@ class BodyfileGenerator(object):
       mode (int): mode.
 
     Returns:
-      str: bodyfile string representation of the mode.
+      str: bodyfile representation of the mode.
     """
-    file_mode = 10 * ['-']
+    string_parts = 10 * ['-']
 
     if mode & 0x0001:
-      file_mode[9] = 'x'
+      string_parts[9] = 'x'
     if mode & 0x0002:
-      file_mode[8] = 'w'
+      string_parts[8] = 'w'
     if mode & 0x0004:
-      file_mode[7] = 'r'
+      string_parts[7] = 'r'
 
     if mode & 0x0008:
-      file_mode[6] = 'x'
+      string_parts[6] = 'x'
     if mode & 0x0010:
-      file_mode[5] = 'w'
+      string_parts[5] = 'w'
     if mode & 0x0020:
-      file_mode[4] = 'r'
+      string_parts[4] = 'r'
 
     if mode & 0x0040:
-      file_mode[3] = 'x'
+      string_parts[3] = 'x'
     if mode & 0x0080:
-      file_mode[2] = 'w'
+      string_parts[2] = 'w'
     if mode & 0x0100:
-      file_mode[1] = 'r'
+      string_parts[1] = 'r'
 
-    file_mode[0] = self._FILE_TYPES.get(mode & 0xf000, '-')
+    string_parts[0] = self._FILE_TYPES.get(mode & 0xf000, '-')
 
-    return ''.join(file_mode)
+    return ''.join(string_parts)
 
   def _GetTimestamp(self, date_time):
     """Retrieves a bodyfile timestamp representation of a date time value.
@@ -133,15 +153,19 @@ class BodyfileGenerator(object):
       mode = getattr(stat_attribute, 'mode', None) or 0
       mode_string = self._GetModeString(mode)
 
-    elif file_attribute_flags is None:
-      mode_string = '---------'
-
-    elif (file_attribute_flags & self._FILE_ATTRIBUTE_READONLY or
-          file_attribute_flags & self._FILE_ATTRIBUTE_SYSTEM):
-      mode_string = 'r-xr-xr-x'
-
     else:
-      mode_string = 'rwxrwxrwx'
+      if file_entry.entry_type == dfvfs_definitions.FILE_ENTRY_TYPE_DIRECTORY:
+        file_type = 'd'
+      elif file_entry.entry_type == dfvfs_definitions.FILE_ENTRY_TYPE_LINK:
+        file_type = 'l'
+      else:
+        file_type = '-'
+
+      if file_attribute_flags is None:
+        mode_string = ''.join([file_type] + (9 * ['-']))
+      else:
+        mode_string = self._GetFileAttributeFlagsString(
+            file_type, file_attribute_flags)
 
     owner_identifier = ''
     if stat_attribute.owner_identifier is not None:
