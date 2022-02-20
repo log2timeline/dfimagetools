@@ -39,6 +39,9 @@ class ArtifactDefinitionFiltersGenerator(object):
     """
     definition = self._artifacts_registry.GetDefinitionByName(name)
     if not definition:
+      definition = self._artifacts_registry.GetDefinitionByAlias(name)
+
+    if not definition:
       logging.warning('Undefined artifact definition: {0:s}'.format(name))
     else:
       for source in definition.sources:

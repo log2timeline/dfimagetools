@@ -1,6 +1,6 @@
 pip >= 7.0.0
 PyYAML >= 3.10
-artifacts >= 20211205
+artifacts >= 20220219
 cffi >= 1.9.1
 cryptography >= 2.0.2
 dfdatetime >= 20211113
