@@ -27,6 +27,37 @@ class PathResolver(object):
   _WINDOWS_DRIVE_INDICATORS = (
       '%%environ_systemdrive%%', '%systemdrive%')
 
+  def _CreateEnvironmentVariablesLookupTable(self, environment_variables):
+    """Creates an environment variables lookup table.
+
+    Args:
+      environment_variables (list[EnvironmentVariable]): environment variables.
+
+    Returns:
+      dict[str, str]: environment variables lookup table.
+    """
+    lookup_table = {}
+    for environment_variable in environment_variables or []:
+      attribute_value = environment_variable.value
+      if not isinstance(attribute_value, str):
+        continue
+
+      # Make the attribute name is in upper case and without the leading and
+      # trailing %-characters.
+      attribute_name = environment_variable.name.upper()
+      if (len(attribute_name) >= 2 and attribute_name[0] == '%' and
+          attribute_name[-1] == '%'):
+        attribute_name = attribute_name[1:-1]
+
+      lookup_table[attribute_name] = attribute_value
+
+    if 'ALLUSERSAPPDATA' not in lookup_table:
+      program_data = lookup_table.get('PROGRAMDATA', None)
+      if program_data:
+        lookup_table['ALLUSERSAPPDATA'] = program_data
+
+    return lookup_table
+
   def _ExpandEnvironmentVariablesInPathSegments(
       self, path_segments, environment_variables):
     """Expands environment variables in path segments.
@@ -41,21 +72,8 @@ class PathResolver(object):
     if environment_variables is None:
       environment_variables = []
 
-    lookup_table = {}
-    if environment_variables:
-      for environment_variable in environment_variables:
-        attribute_value = environment_variable.value
-        if not isinstance(attribute_value, str):
-          continue
-
-        # Make the attribute name is in upper case and without the leading and
-        # trailing %-characters.
-        attribute_name = environment_variable.name.upper()
-        if (len(attribute_name) >= 2 and attribute_name[0] == '%' and
-            attribute_name[-1] == '%'):
-          attribute_name = attribute_name[1:-1]
-
-        lookup_table[attribute_name] = attribute_value
+    lookup_table = self._CreateEnvironmentVariablesLookupTable(
+        environment_variables)
 
     # Make a copy of path_segments since this loop can change it.
     for index, path_segment in enumerate(list(path_segments)):
