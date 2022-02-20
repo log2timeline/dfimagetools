@@ -10,9 +10,9 @@ import sys
 from artifacts import reader as artifacts_reader
 from artifacts import registry as artifacts_registry
 
-from dfvfs.helpers import command_line
-from dfvfs.helpers import volume_scanner
-from dfvfs.lib import errors
+from dfvfs.helpers import command_line as dfvfs_command_line
+from dfvfs.helpers import volume_scanner as dfvfs_volume_scanner
+from dfvfs.lib import errors as dfvfs_errors
 
 from dfimagetools import artifact_filters
 from dfimagetools import data_stream_writer
@@ -133,9 +133,9 @@ def Main():
   logging.basicConfig(
       level=logging.INFO, format='[%(levelname)s] %(message)s')
 
-  mediator = command_line.CLIVolumeScannerMediator()
+  mediator = dfvfs_command_line.CLIVolumeScannerMediator()
 
-  volume_scanner_options = volume_scanner.VolumeScannerOptions()
+  volume_scanner_options = dfvfs_volume_scanner.VolumeScannerOptions()
   volume_scanner_options.partitions = mediator.ParseVolumeIdentifiersString(
       options.partitions)
 
@@ -219,7 +219,7 @@ def Main():
           stream_writer.WriteDataStream(
               file_entry, data_stream.name, destination_path)
 
-  except errors.ScannerError as exception:
+  except dfvfs_errors.ScannerError as exception:
     print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
     print('')
     return False
