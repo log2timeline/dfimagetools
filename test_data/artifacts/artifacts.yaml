@@ -8,7 +8,6 @@ sources:
     names:
     - 'TestFile1'
     - 'TestFile2'
-labels: [System]
 supported_os: [Windows]
 ---
 name: TestFile1
@@ -18,7 +17,6 @@ sources:
   attributes:
     paths: ['%%users.homedir%%/AUTHORS']
     separator: '/'
-labels: [System]
 supported_os: [Linux]
 ---
 name: TestFile2
@@ -28,5 +26,4 @@ sources:
   attributes:
     paths: ['%%environ_systemroot%%\test_data\*.evtx']
     separator: '\'
-labels: [System]
 supported_os: [Windows]

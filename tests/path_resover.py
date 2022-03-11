@@ -111,7 +111,8 @@ class PathResolverTest(test_lib.BaseTestCase):
         path_segments, '/', [])
 
     expected_expanded_paths = [
-        '%%users.homedir%%/.bashrc']
+        '/Documents and Settings/*/.bashrc', '/home/*/.bashrc',
+        '/Users/*/.bashrc']
     self.assertEqual(expanded_paths, expected_expanded_paths)
 
     user_account_artifact1 = resources.UserAccount(

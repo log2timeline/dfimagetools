@@ -53,7 +53,7 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     find_specs = list(test_generator._BuildFindSpecsFromArtifactDefinition(
         'TestGroup1'))
 
-    self.assertEqual(len(find_specs), 1)
+    self.assertEqual(len(find_specs), 4)
 
   def testBuildFindSpecsFromFileSourcePath(self):
     """Tests the _BuildFindSpecsFromFileSourcePath function."""

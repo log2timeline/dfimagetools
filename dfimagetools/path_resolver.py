@@ -129,7 +129,15 @@ class PathResolver(object):
       user_paths.append(user_path)
 
     elif not user_accounts:
-      user_path = path_separator.join(path_segments)
+      # Default to "Documents and Settings", "home" and "Users"
+      user_path = path_separator.join(
+          ['', 'Documents and Settings', '*'] + path_segments[1:])
+      user_paths.append(user_path)
+
+      user_path = path_separator.join(['', 'home', '*'] + path_segments[1:])
+      user_paths.append(user_path)
+
+      user_path = path_separator.join(['', 'Users', '*'] + path_segments[1:])
       user_paths.append(user_path)
 
     else:
