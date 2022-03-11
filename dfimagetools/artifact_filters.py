@@ -48,9 +48,15 @@ class ArtifactDefinitionFiltersGenerator(object):
         source_type = source.type_indicator
         if source_type not in (
             artifacts_definitions.TYPE_INDICATOR_ARTIFACT_GROUP,
+            artifacts_definitions.TYPE_INDICATOR_DIRECTORY,
             artifacts_definitions.TYPE_INDICATOR_FILE,
             artifacts_definitions.TYPE_INDICATOR_PATH):
           continue
+
+        if source_type == artifacts_definitions.TYPE_INDICATOR_DIRECTORY:
+          logging.warning((
+              'Use of deprecated source type: directory in artifact '
+              'definition: {0:s}').format(name))
 
         if source_type == artifacts_definitions.TYPE_INDICATOR_ARTIFACT_GROUP:
           for source_name in set(source.names):
@@ -59,6 +65,7 @@ class ArtifactDefinitionFiltersGenerator(object):
               yield find_spec
 
         elif source_type in (
+            artifacts_definitions.TYPE_INDICATOR_DIRECTORY,
             artifacts_definitions.TYPE_INDICATOR_FILE,
             artifacts_definitions.TYPE_INDICATOR_PATH):
           for source_path in set(source.paths):
