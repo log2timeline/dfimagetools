@@ -36,6 +36,14 @@ dfimagetools.decorators module
    :undoc-members:
    :show-inheritance:
 
+dfimagetools.environment\_variables module
+------------------------------------------
+
+.. automodule:: dfimagetools.environment_variables
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 dfimagetools.file\_entry\_lister module
 ---------------------------------------
 
@@ -64,6 +72,14 @@ dfimagetools.resources module
 -----------------------------
 
 .. automodule:: dfimagetools.resources
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dfimagetools.windows\_registry module
+-------------------------------------
+
+.. automodule:: dfimagetools.windows_registry
    :members:
    :undoc-members:
    :show-inheritance:
