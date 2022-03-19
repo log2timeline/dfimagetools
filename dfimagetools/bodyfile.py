@@ -190,13 +190,19 @@ class BodyfileGenerator(object):
         for segment in path_segments]
     file_entry_name_value = '/'.join(path_segments) or '/'
 
-    if file_entry.link:
-      file_entry_link = file_entry.link.translate(
-          self._bodyfile_escape_characters)
+    if not file_entry.link:
+      name_value = file_entry_name_value
+    else:
+      if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+        path_segments = file_entry.link.split('\\')
+      else:
+        path_segments = file_entry.link.split('/')
+
+      file_entry_link = '/'.join([
+          segment.translate(self._bodyfile_escape_characters)
+          for segment in path_segments])
       name_value = '{0:s} -> {1:s}'.format(
           file_entry_name_value, file_entry_link)
-    else:
-      name_value = file_entry_name_value
 
     yield '|'.join([
         md5_string, name_value, inode_string, mode_string, owner_identifier,
