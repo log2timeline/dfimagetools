@@ -1,5 +1,5 @@
 # Artifact definitions.
-
+---
 name: TestGroup1
 doc: Test group artifact definition
 sources:
