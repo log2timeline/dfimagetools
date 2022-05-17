@@ -4,9 +4,7 @@
 
 import argparse
 import logging
-import os
 import sys
-from unittest.loader import VALID_MODULE_NAME
 
 from dfimagetools import docker
 from dfvfs.helpers import command_line as dfvfs_command_line
@@ -15,8 +13,47 @@ from dfvfs.lib import errors as dfvfs_errors
 from dfvfs.resolver import resolver as dfvfs_resolver
 from dfvfs.path import factory as dfvfs_factory
 
+from dfimagetools import bodyfile
+
 
 _DEFAULT_DOCKER_DIRECTORY = '/var/lib/docker'
+
+
+def _ListEntries(current_entry, bodyfile_generator, parent_path_segments):
+  """Recursively print the bodyfile of a FileEntry.
+
+  Args:
+    current_entry (file_entry.FileEntry): the file entry to list bodyfile
+        entries.
+    bodyfile_generator (bodyfile.BodyFileGenerator): a generator for
+        bodyfile entries.
+    parent_path_segments (List[str]): path segments of the full path of the
+        parent file entry
+  """
+  for entry in current_entry.sub_file_entries:
+    for bodyfile_entry in bodyfile_generator.GetEntries(
+        entry, parent_path_segments + [entry.name]):
+      print(bodyfile_entry)
+    if entry.IsDirectory():
+      _ListEntries(entry, bodyfile_generator, parent_path_segments +
+                   [entry.name])
+
+
+def ProcessContainer(container: docker.DockerContainer):
+  """Produces a bodyfile output of the container filesystem.
+
+  Args:
+    container (docker.DockerContainer): the Docker container to process.
+  """
+  bodyfile_generator = bodyfile.BodyfileGenerator()
+
+  print(f'[INFO] Enumerating overlay for {container.name} '
+        f'{container.identifier}.', file=sys.stderr)
+
+  filesystem = container.GetOverlayFileSystem()
+  filesystem.Open()
+  _ListEntries(filesystem.GetRootFileEntry(), bodyfile_generator, [''])
+
 
 def Main():
   """The main program function.
@@ -28,12 +65,12 @@ def Main():
       'Lists metadata of file entries in a container on storage media image.'))
 
   argument_parser.add_argument(
-    '--container_id', '--container-id', dest='container_id',
-      action='store', type=str, default='all', help=(
-          'Docker folder location.  Default is all.'))
+      '--container_id', '--container-id', dest='container_id',
+      action='store', type=str, required=True, help=(
+          'Docker folder location.'))
 
   argument_parser.add_argument(
-    '--docker_folder', '--docker-folder', dest='docker_folder',
+      '--docker_folder', '--docker-folder', dest='docker_folder',
       action='store', type=str, default=_DEFAULT_DOCKER_DIRECTORY, help=(
           'Docker folder location.  Default is /var/lib/docker'))
 
@@ -99,16 +136,16 @@ def Main():
 
   try:
     base_path_specs = volume_scanner.GetBasePathSpecs(
-      options.source, options=volume_scanner_options)
+        options.source, options=volume_scanner_options)
     if not base_path_specs:
-      print('No supported file ystem found in source.')
+      print('No supported file system found in source.')
       print('')
       return False
 
     for base_path_spec in base_path_specs:
       docker_path_spec = dfvfs_factory.Factory.NewPathSpec(
-        base_path_spec.TYPE_INDICATOR, location=options.docker_folder,
-        parent=base_path_spec.parent)
+          base_path_spec.TYPE_INDICATOR, location=options.docker_folder,
+          parent=base_path_spec.parent)
 
       file_system = dfvfs_resolver.Resolver.OpenFileSystem(docker_path_spec)
       if not file_system.FileEntryExistsByPathSpec(docker_path_spec):
@@ -116,15 +153,10 @@ def Main():
         continue
 
       docker_instance = docker.DockerInstance(docker_path_spec)
-      for container_entry in docker_instance.GetContainierEntries():
-        container = docker_instance.GetContainerByIdentifier(
-            container_entry.name)
 
-        print(f'[INFO] Enumerating overlay for {container.name} '
-              f'{container.identifier}.')
-        fs = container.GetOverlayFileSystem()
-        ListEntries(fs.GetRootFileEntry())
-
+      container = docker_instance.GetContainerByIdentifier(
+          options.container_id)
+      ProcessContainer(container)
 
   except dfvfs_errors.ScannerError as exception:
     print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
@@ -137,14 +169,6 @@ def Main():
     return False
 
   return True
-
-
-def ListEntries(current_entry):
-  for entry in current_entry.sub_file_entries:
-    print(entry.path_spec.location, entry.path_spec.parent.location)
-    if entry.IsDirectory():
-      ListEntries(entry)
-
 
 
 if __name__ == '__main__':
