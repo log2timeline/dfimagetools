@@ -207,6 +207,7 @@ setup(
     version=dfimagetools.__version__,
     description=dfimagetools_description,
     long_description=dfimagetools_long_description,
+    long_description_content_type='text/plain',
     license='Apache License, Version 2.0',
     url='https://github.com/log2timeline/dfimagetools',
     maintainer='Log2Timeline maintainers',
