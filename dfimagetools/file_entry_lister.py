@@ -12,9 +12,6 @@ from dfvfs.path import factory as dfvfs_path_spec_factory
 from dfvfs.resolver import resolver as dfvfs_resolver
 from dfvfs.volume import factory as dfvfs_volume_system_factory
 
-from dfimagetools import bodyfile
-from dfimagetools import decorators
-
 
 class FileEntryLister(volume_scanner.VolumeScanner):
   """File entry lister."""
@@ -35,7 +32,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       mediator (dfvfs.VolumeScannerMediator): a volume scanner mediator.
     """
     super(FileEntryLister, self).__init__(mediator=mediator)
-    self._bodyfile_generator = bodyfile.BodyfileGenerator()
     self._list_only_files = False
 
   def _GetBasePathSegments(self, base_path_spec):
@@ -121,19 +117,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       for result in self._ListFileEntry(
           file_system, sub_file_entry, path_segments):
         yield result
-
-  @decorators.deprecated
-  def GetBodyfileEntries(self, file_entry, path_segments):
-    """Retrieves bodyfile entry representations of a file entry.
-
-    Args:
-      file_entry (dfvfs.FileEntry): file entry.
-      path_segments (str): path segments of the full path of the file entry.
-
-    Returns:
-      generator[str]: bodyfile entry generator.
-    """
-    return self._bodyfile_generator.GetEntries(file_entry, path_segments)
 
   def GetWindowsDirectory(self, base_path_spec):
     """Retrieves the Windows directory from the base path specification.
