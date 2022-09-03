@@ -133,6 +133,9 @@ Time values are provided as a number of seconds since January 1, 1970 00:00:00
 A fraction of second is provided if the original time value has a higher
 [datetime value granularity](https://dfdatetime.readthedocs.io/en/latest/sources/Date-and-time-values.html#terminology).
 
+Note that a time value of 0 represent not-set or that the original time value,
+before conversion to POSIX time, was 0.
+
 ## Also see
 
 * [Forensics wiki: Bodyfile](https://forensicswiki.xyz/wiki/index.php?title=Bodyfile)
