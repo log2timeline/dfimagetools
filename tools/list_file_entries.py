@@ -101,7 +101,7 @@ def Main():
     return False
 
   if options.output_format != 'bodyfile':
-    print('Unsupported output format: {0:s}.'.format(options.output_format))
+    print(f'Unsupported output format: {options.output_format:s}.')
     print('')
     argument_parser.print_help()
     print('')
@@ -199,7 +199,7 @@ def Main():
           print(bodyfile_entry)
 
   except dfvfs_errors.ScannerError as exception:
-    print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
+    print(f'[ERROR] {exception!s}', file=sys.stderr)
     print('')
     return False
 

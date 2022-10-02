@@ -18,8 +18,7 @@ class BodyfileGenerator(object):
       '\\': '\\\\',
       '|': '\\|'}
   _ESCAPE_CHARACTERS.update({
-      value: '\\x{0:02x}'.format(value)
-      for value in _NON_PRINTABLE_CHARACTERS})
+      value: f'\\x{value:02x}' for value in _NON_PRINTABLE_CHARACTERS})
 
   _FILE_TYPES = {
       0x1000: 'p',
@@ -154,13 +153,13 @@ class BodyfileGenerator(object):
     if stat_attribute.inode_number is None:
       inode_string = ''
     elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_FAT:
-      inode_string = '0x{0:x}'.format(stat_attribute.inode_number)
+      inode_string = f'0x{stat_attribute.inode_number:x}'
     elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
-      inode_string = '{0:d}-{1:d}'.format(
-          stat_attribute.inode_number & 0xffffffffffff,
-          stat_attribute.inode_number >> 48)
+      mft_entry_number = stat_attribute.inode_number & 0xffffffffffff
+      mft_sequence_number = stat_attribute.inode_number >> 48
+      inode_string = f'{mft_entry_number:d}-{mft_sequence_number:d}'
     else:
-      inode_string = '{0:d}'.format(stat_attribute.inode_number)
+      inode_string = f'{stat_attribute.inode_number:d}'
 
     if file_entry.type_indicator not in (
         dfvfs_definitions.TYPE_INDICATOR_FAT,
@@ -218,8 +217,7 @@ class BodyfileGenerator(object):
       file_entry_link = '/'.join([
           segment.translate(self._bodyfile_escape_characters)
           for segment in path_segments])
-      name_value = '{0:s} -> {1:s}'.format(
-          file_entry_name_value, file_entry_link)
+      name_value = ' -> '.join([file_entry_name_value, file_entry_link])
 
     yield '|'.join([
         md5_string, name_value, inode_string, mode_string, owner_identifier,
@@ -242,8 +240,8 @@ class BodyfileGenerator(object):
       if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
         if (attribute.name == file_entry.name and
             attribute.parent_file_reference == parent_file_reference):
-          attribute_name_value = '{0:s} ($FILE_NAME)'.format(
-              file_entry_name_value)
+          attribute_name_value = ' '.join([
+              file_entry_name_value, '($FILE_NAME)'])
 
           access_time = self._GetTimestamp(attribute.access_time)
           creation_time = self._GetTimestamp(attribute.creation_time)
