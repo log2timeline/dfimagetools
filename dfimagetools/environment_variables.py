@@ -48,10 +48,9 @@ class WindowsEnvironmentVariablesCollector(object):
       EnvironmentVariable: an environment variable.
     """
     for registry_value in registry_key.GetValues():
-      environment_variable_name = '%{0:s}%'.format(registry_value.name)
       value_string = registry_value.GetDataAsObject()
       yield resources.EnvironmentVariable(
-          case_sensitive=False, name=environment_variable_name,
+          case_sensitive=False, name=f'%{registry_value.name:s}%',
           value=value_string)
 
   def _CollectEnvironmentVariablesWithMappings(self, registry_key, mappings):

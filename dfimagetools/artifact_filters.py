@@ -42,7 +42,7 @@ class ArtifactDefinitionFiltersGenerator(object):
       definition = self._artifacts_registry.GetDefinitionByAlias(name)
 
     if not definition:
-      logging.warning('Undefined artifact definition: {0:s}'.format(name))
+      logging.warning(f'Undefined artifact definition: {name:s}')
     else:
       for source in definition.sources:
         source_type = source.type_indicator
@@ -55,8 +55,8 @@ class ArtifactDefinitionFiltersGenerator(object):
 
         if source_type == artifacts_definitions.TYPE_INDICATOR_DIRECTORY:
           logging.warning((
-              'Use of deprecated source type: directory in artifact '
-              'definition: {0:s}').format(name))
+              f'Use of deprecated source type: directory in artifact '
+              f'definition: {name:s}'))
 
         if source_type == artifacts_definitions.TYPE_INDICATOR_ARTIFACT_GROUP:
           for source_name in set(source.names):
@@ -102,8 +102,8 @@ class ArtifactDefinitionFiltersGenerator(object):
               location_separator=path_separator)
         except ValueError as exception:
           logging.error((
-              'Unable to build find specification for path: "{0:s}" with '
-              'error: {1!s}').format(path, exception))
+              f'Unable to build find specification for path: "{path:s}" with '
+              f'error: {exception!s}'))
           continue
 
         yield find_spec

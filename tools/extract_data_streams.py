@@ -117,8 +117,8 @@ def Main():
 
   target_path = options.target
   if not target_path:
-    target_path = '{0:s}.extracted'.format(os.path.basename(options.source))
-    target_path = os.path.join(os.getcwd(), target_path)
+    source_name = os.path.basename(options.source)
+    target_path = os.path.join(os.getcwd(), f'{source_name:s}.extracted')
 
   if not os.path.exists(target_path):
     os.makedirs(target_path)
@@ -210,8 +210,7 @@ def Main():
               path_segments, data_stream.name)
           destination_path = stream_writer.GetSanitizedPath(
               path_segments, data_stream.name, target_path)
-          logging.info('Extracting: {0:s} to: {1:s}'.format(
-              display_path, destination_path))
+          logging.info(f'Extracting: {display_path:s} to: {destination_path:s}')
 
           destination_directory = os.path.dirname(destination_path)
           os.makedirs(destination_directory, exist_ok=True)
@@ -220,7 +219,7 @@ def Main():
               file_entry, data_stream.name, destination_path)
 
   except dfvfs_errors.ScannerError as exception:
-    print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
+    print(f'[ERROR] {exception!s}', file=sys.stderr)
     print('')
     return False
 

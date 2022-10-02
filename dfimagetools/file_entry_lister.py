@@ -65,8 +65,8 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
       volume_identifier = volume.GetAttribute('identifier')
 
-      volume_path_segment = '{0:s}{{{1:s}}}'.format(
-          volume_identifier_prefix, volume_identifier.value)
+      volume_path_segment = (
+          f'{volume_identifier_prefix:s}{{{volume_identifier.value:s}}}')
       return ['', volume_path_segment]
 
     if base_path_spec.parent.type_indicator == (
@@ -158,8 +158,9 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       if file_entry is None:
         path_specification_string = self._GetPathSpecificationString(
             base_path_spec)
-        logging.warning('Unable to open base path specification:\n{0:s}'.format(
-            path_specification_string))
+        logging.warning(''.join([
+            'Unable to open base path specification:\n',
+            path_specification_string]))
         return
 
       base_path_segments = self._GetBasePathSegments(base_path_spec)

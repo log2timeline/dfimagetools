@@ -126,14 +126,14 @@ def Main():
 
         for extent in data_stream.GetExtents():
           if extent.extent_type != dfvfs_definitions.EXTENT_TYPE_SPARSE:
-            print('0x{0:08x}\t0x{1:08x}\t{2:s}\t{3:s}'.format(
-                extent.offset, extent.offset + extent.size, extent_type,
-                data_stream_path))
+            extent_end_offset = extent.offset + extent.size
+            print(f'0x{extent.offset:08x}\t0x{extent_end_offset:08x}\t'
+                  f'{extent_type:s}\t{data_stream_path:s}')
 
   except errors.ScannerError as exception:
     return_value = False
 
-    print('[ERROR] {0!s}'.format(exception), file=sys.stderr)
+    print(f'[ERROR] {exception!s}', file=sys.stderr)
 
   except KeyboardInterrupt:
     return_value = False
