@@ -14,6 +14,10 @@ def SetDFVFSBackEnd(back_end):
     dfvfs_definitions.PREFERRED_EXT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_EXT)
 
+  elif back_end == 'FAT':
+    dfvfs_definitions.PREFERRED_FAT_BACK_END = (
+        dfvfs_definitions.TYPE_INDICATOR_FAT)
+
   elif back_end == 'GPT':
     dfvfs_definitions.PREFERRED_GPT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_GPT)
@@ -28,6 +32,8 @@ def SetDFVFSBackEnd(back_end):
 
   elif back_end == 'TSK':
     dfvfs_definitions.PREFERRED_EXT_BACK_END = (
+        dfvfs_definitions.TYPE_INDICATOR_TSK)
+    dfvfs_definitions.PREFERRED_FAT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_TSK)
     dfvfs_definitions.PREFERRED_GPT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION)

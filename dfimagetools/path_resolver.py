@@ -277,21 +277,21 @@ class PathResolver(object):
             recursion_depth = int(path_segment[2:], 10)
           except (TypeError, ValueError):
             logging.warning((
-                'Globstar with suffix "{0:s}" in path "{1:s}" not '
-                'supported.').format(path_segment, path))
+                f'Globstar with suffix "{path_segment:s}" in path "{path:s}" '
+                f'not supported.'))
 
       elif '**' in path_segment:
         logging.warning((
-            'Globstar with prefix "{0:s}" in path "{1:s}" not '
-            'supported.').format(path_segment, path))
+            f'Globstar with prefix "{path_segment:s}" in path "{path:s}" not '
+            f'supported.'))
 
       if recursion_depth is not None:
         if (recursion_depth <= 1 or
             recursion_depth > self._GLOBSTAR_RECURSION_LIMIT):
           logging.warning((
-              'Globstar "{0:s}" in path "{1:s}" exceed recursion maximum '
-              'recursion depth, limiting to: {2:d}.').format(
-                  path_segment, path, self._GLOBSTAR_RECURSION_LIMIT))
+              f'Globstar "{path_segment:s}" in path "{path:s}" exceeds '
+              f'recursion maximum recursion depth, limiting to: '
+              f'{self._GLOBSTAR_RECURSION_LIMIT:d}.'))
           recursion_depth = self._GLOBSTAR_RECURSION_LIMIT
 
         next_segment_index = segment_index + 1

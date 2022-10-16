@@ -18,8 +18,7 @@ class BodyfileGenerator(object):
       '\\': '\\\\',
       '|': '\\|'}
   _ESCAPE_CHARACTERS.update({
-      value: '\\x{0:02x}'.format(value)
-      for value in _NON_PRINTABLE_CHARACTERS})
+      value: f'\\x{value:02x}' for value in _NON_PRINTABLE_CHARACTERS})
 
   _FILE_TYPES = {
       0x1000: 'p',
@@ -30,18 +29,25 @@ class BodyfileGenerator(object):
       0xc000: 's'}
 
   _FILE_ATTRIBUTE_READONLY = 1
+  _FILE_ATTRIBUTE_HIDDEN = 2
   _FILE_ATTRIBUTE_SYSTEM = 4
 
   _TIMESTAMP_FORMAT_STRINGS = {
       dfdatetime_definitions.PRECISION_1_NANOSECOND: '{0:d}.{1:09d}',
+      dfdatetime_definitions.PRECISION_10_NANOSECONDS: '{0:d}.{1:08d}',
       dfdatetime_definitions.PRECISION_100_NANOSECONDS: '{0:d}.{1:07d}',
       dfdatetime_definitions.PRECISION_1_MICROSECOND: '{0:d}.{1:06d}',
-      dfdatetime_definitions.PRECISION_1_MILLISECOND: '{0:d}.{1:03d}'}
+      dfdatetime_definitions.PRECISION_10_MICROSECONDS: '{0:d}.{1:05d}',
+      dfdatetime_definitions.PRECISION_100_MICROSECONDS: '{0:d}.{1:04d}',
+      dfdatetime_definitions.PRECISION_1_MILLISECOND: '{0:d}.{1:03d}',
+      dfdatetime_definitions.PRECISION_10_MILLISECONDS: '{0:d}.{1:02d}',
+      dfdatetime_definitions.PRECISION_100_MILLISECONDS: '{0:d}.{1:01d}'}
 
   def __init__(self):
     """Initializes a bodyfile generator."""
     super(BodyfileGenerator, self).__init__()
     self._bodyfile_escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+    self._root_file_entry_identifier = None
 
   def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
     """Retrieves a bodyfile string representation of file attributes flags.
@@ -53,13 +59,13 @@ class BodyfileGenerator(object):
     Returns:
       str: bodyfile representation of the file attributes flags.
     """
-    string_parts = [file_type, 'r', '-', 'x', 'r', '-', 'x', 'r', '-', 'x']
+    string_parts = [file_type, 'r', 'w', 'x', 'r', 'w', 'x', 'r', 'w', 'x']
 
-    if (not file_attribute_flags & self._FILE_ATTRIBUTE_READONLY and
-        not file_attribute_flags & self._FILE_ATTRIBUTE_SYSTEM):
-      string_parts[2] = 'w'
-      string_parts[5] = 'w'
-      string_parts[8] = 'w'
+    if (file_attribute_flags & self._FILE_ATTRIBUTE_READONLY or
+        file_attribute_flags & self._FILE_ATTRIBUTE_SYSTEM):
+      string_parts[2] = '-'
+      string_parts[5] = '-'
+      string_parts[8] = '-'
 
     return ''.join(string_parts)
 
@@ -129,7 +135,11 @@ class BodyfileGenerator(object):
     """
     file_attribute_flags = None
     parent_file_reference = None
-    if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+    if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_FAT:
+      fsfat_file_entry = file_entry.GetFATFileEntry()
+      file_attribute_flags = fsfat_file_entry.file_attribute_flags
+
+    elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
       mft_attribute_index = getattr(file_entry.path_spec, 'mft_attribute', None)
       if mft_attribute_index is not None:
         fsntfs_file_entry = file_entry.GetNTFSFileEntry()
@@ -142,14 +152,18 @@ class BodyfileGenerator(object):
 
     if stat_attribute.inode_number is None:
       inode_string = ''
+    elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_FAT:
+      inode_string = f'0x{stat_attribute.inode_number:x}'
     elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
-      inode_string = '{0:d}-{1:d}'.format(
-          stat_attribute.inode_number & 0xffffffffffff,
-          stat_attribute.inode_number >> 48)
+      mft_entry_number = stat_attribute.inode_number & 0xffffffffffff
+      mft_sequence_number = stat_attribute.inode_number >> 48
+      inode_string = f'{mft_entry_number:d}-{mft_sequence_number:d}'
     else:
-      inode_string = '{0:d}'.format(stat_attribute.inode_number)
+      inode_string = f'{stat_attribute.inode_number:d}'
 
-    if file_entry.type_indicator != dfvfs_definitions.TYPE_INDICATOR_NTFS:
+    if file_entry.type_indicator not in (
+        dfvfs_definitions.TYPE_INDICATOR_FAT,
+        dfvfs_definitions.TYPE_INDICATOR_NTFS):
       mode = getattr(stat_attribute, 'mode', None) or 0
       mode_string = self._GetModeString(mode)
 
@@ -193,7 +207,9 @@ class BodyfileGenerator(object):
     if not file_entry.link:
       name_value = file_entry_name_value
     else:
-      if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+      if file_entry.type_indicator in (
+          dfvfs_definitions.TYPE_INDICATOR_FAT,
+          dfvfs_definitions.TYPE_INDICATOR_NTFS):
         path_segments = file_entry.link.split('\\')
       else:
         path_segments = file_entry.link.split('/')
@@ -201,8 +217,7 @@ class BodyfileGenerator(object):
       file_entry_link = '/'.join([
           segment.translate(self._bodyfile_escape_characters)
           for segment in path_segments])
-      name_value = '{0:s} -> {1:s}'.format(
-          file_entry_name_value, file_entry_link)
+      name_value = ' -> '.join([file_entry_name_value, file_entry_link])
 
     yield '|'.join([
         md5_string, name_value, inode_string, mode_string, owner_identifier,
@@ -225,8 +240,8 @@ class BodyfileGenerator(object):
       if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
         if (attribute.name == file_entry.name and
             attribute.parent_file_reference == parent_file_reference):
-          attribute_name_value = '{0:s} ($FILE_NAME)'.format(
-              file_entry_name_value)
+          attribute_name_value = ' '.join([
+              file_entry_name_value, '($FILE_NAME)'])
 
           access_time = self._GetTimestamp(attribute.access_time)
           creation_time = self._GetTimestamp(attribute.creation_time)

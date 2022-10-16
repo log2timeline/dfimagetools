@@ -28,10 +28,9 @@ except ImportError:
   from distutils.command.sdist import sdist
 
 version_tuple = (sys.version_info[0], sys.version_info[1])
-if version_tuple < (3, 6):
-  print((
-      'Unsupported Python version: {0:s}, version 3.6 or higher '
-      'required.').format(sys.version))
+if version_tuple < (3, 7):
+  print(f'Unsupported Python version: {sys.version:s}, version 3.7 or higher '
+        f'required.')
   sys.exit(1)
 
 # Change PYTHONPATH to include dfimagetools so that we can get the version.
@@ -88,8 +87,8 @@ else:
           summary = line[9:]
 
         elif line.startswith('BuildRequires: '):
-          line = 'BuildRequires: {0:s}-setuptools, {0:s}-devel'.format(
-              python_package)
+          line = (f'BuildRequires: {python_package:s}-setuptools, '
+                  f'{python_package:s}-devel')
 
         elif line.startswith('Requires: '):
           requires = line[10:]
@@ -112,7 +111,7 @@ else:
 
         elif line.startswith('%files'):
           lines = [
-              '%files -n {0:s}-%{{name}}'.format(python_package),
+              f'%files -n {python_package:s}-%{{name}}',
               '%defattr(644,root,root,755)',
               '%license LICENSE',
               '%doc ACKNOWLEDGEMENTS AUTHORS README']
@@ -131,23 +130,21 @@ else:
         elif line.startswith('%prep'):
           in_description = False
 
-          python_spec_file.append(
-              '%package -n {0:s}-%{{name}}'.format(python_package))
-          python_summary = 'Python 3 module of {0:s}'.format(summary)
+          python_spec_file.append(f'%package -n {python_package:s}-%{{name}}')
+          python_summary = f'Python 3 module of {summary:s}'
 
           python_spec_file.extend([
-              'Requires: {0:s}'.format(requires),
-              'Summary: {0:s}'.format(python_summary),
+              f'Requires: {requires:s}',
+              f'Summary: {python_summary:s}',
               '',
-              '%description -n {0:s}-%{{name}}'.format(python_package)])
+              f'%description -n {python_package:s}-%{{name}}'])
 
           python_spec_file.extend(description)
 
           python_spec_file.extend([
               '%package -n %{name}-tools',
-              'Requires: {0:s}-dfimagetools >= %{{version}}'.format(
-                  python_package),
-              'Summary: Tools for {0:s}'.format(summary),
+              f'Requires: {python_package:s}-dfimagetools >= %{{version}}',
+              f'Summary: Tools for {summary:s}',
               '',
               '%description -n %{name}-tools'])
 
@@ -202,19 +199,23 @@ dfimagetools_description = (
 dfimagetools_long_description = (
     'Collection of tools to process storage media images.')
 
+command_classes = {'sdist_test_data': sdist}
+if BdistMSICommand:
+  command_classes['bdist_msi'] = BdistMSICommand
+if BdistRPMCommand:
+  command_classes['bdist_rpm'] = BdistRPMCommand
+
 setup(
     name='dfimagetools',
     version=dfimagetools.__version__,
     description=dfimagetools_description,
     long_description=dfimagetools_long_description,
+    long_description_content_type='text/plain',
     license='Apache License, Version 2.0',
     url='https://github.com/log2timeline/dfimagetools',
     maintainer='Log2Timeline maintainers',
     maintainer_email='log2timeline-maintainers@googlegroups.com',
-    cmdclass={
-        'bdist_msi': BdistMSICommand,
-        'bdist_rpm': BdistRPMCommand,
-        'sdist_test_data': sdist},
+    cmdclass=command_classes,
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',

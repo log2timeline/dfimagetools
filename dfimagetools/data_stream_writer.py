@@ -17,8 +17,7 @@ class DataStreamWriter(object):
       '\\': '\\\\',
       '|': '\\|'}
   _ESCAPE_CHARACTERS.update({
-      value: '\\x{0:02x}'.format(value)
-      for value in _NON_PRINTABLE_CHARACTERS})
+      value: f'\\x{value:02x}' for value in _NON_PRINTABLE_CHARACTERS})
 
   _INVALID_PATH_CHARACTERS = [
       os.path.sep, '!', '$', '%', '&', '*', '+', ':', ';', '<', '>', '?', '@',

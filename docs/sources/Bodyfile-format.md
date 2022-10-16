@@ -84,8 +84,11 @@ volumes at once.
 The inode value contains an unique identifier of the file entry within the file
 system, which for some file systems is the inode number.
 
-For NTFS the convention `${MFT_ENTRY}-${SEQUENCE_NUMBER}` is used instead of
-the non-portable [metadata address](https://wiki.sleuthkit.org/index.php?title=Metadata_Address)
+For the dfVFS FAT back-end the offset, relative to the start of the volume, to
+the directory entry is used.
+
+For the dfVFS NTFS back-end the convention `${MFT_ENTRY}-${SEQUENCE_NUMBER}` is
+used instead of the non-portable [metadata address](https://wiki.sleuthkit.org/index.php?title=Metadata_Address)
 used by the SleuthKit tools.
 
 ## Mode_as_string value
@@ -111,16 +114,16 @@ group and other.
 
 The SleuthKit specific `[-dlr]/` prefix is not used by the dfImageTools project.
 
-### NTFS
+### FAT and NTFS
 
-For NTFS dfImageTools uses the following approximation to generate
-a mode_as_string value.
+For the FAT and NTFS dfVFS back-end, dfImageTools uses the following approach
+to generate a mode_as_string value.
 
 The first character represents the file entry type:
 
 * '-' to indicate a "regular" file or unknown type
-* 'd' to indicate a directory, if the file entry has an \$I30 index and is not a symbolic link
-* 'l' to indicate a symbolic link, if the file entry has a \$REPARSE_POINT attribute with tag 0xa000000c
+* 'd' to indicate a directory, e.g. for NTFS if the file entry has an \$I30 index and is not a symbolic link
+* 'l' to indicate a symbolic link, e.g. for NTFS if the file entry has a \$REPARSE_POINT attribute with tag 0xa000000c
 
 The remaining characters are based on the file attribute flags and will be
 'r-xr-xr-x' if FILE_ATTRIBUTE_READONLY or FILE_ATTRIBUTE_SYSTEM is set or
@@ -132,6 +135,9 @@ Time values are provided as a number of seconds since January 1, 1970 00:00:00
 (epoch) without a time zone, where negative time values predate the epoch.
 A fraction of second is provided if the original time value has a higher
 [datetime value granularity](https://dfdatetime.readthedocs.io/en/latest/sources/Date-and-time-values.html#terminology).
+
+Note that a time value of 0 represent not-set or that the original time value,
+before conversion to POSIX time, was 0.
 
 ## Also see
 
