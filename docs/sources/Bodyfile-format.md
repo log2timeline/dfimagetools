@@ -141,5 +141,5 @@ before conversion to POSIX time, was 0.
 
 ## Also see
 
-* [Forensics wiki: Bodyfile](https://forensicswiki.xyz/wiki/index.php?title=Bodyfile)
+* [Forensics wiki: Bodyfile](https://forensics.wiki/bodyfile)
 * [SleuthKit: Body file](https://wiki.sleuthkit.org/index.php?title=Body_file)
