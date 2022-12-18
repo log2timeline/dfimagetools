@@ -7,15 +7,36 @@ input to the mactime tool.
 
 The bodyfile format has been adopted by many other, non-SleuthKit tools, and
 does not appear to have a strict definition. This document explains
-the implementation used by the dfImageTools project.
+the implementation used by the dfImageTools and libyal projects.
 
 The dfImageTools project uses a bodyfile format that has been derived from
 the format used by SleuthKit 3.0 and later. Changes have been made to overcome
-several shortcomings of the original format.
+several shortcomings of the original format, therefore this format is also
+referred to as the extended bodyfile version 3 format.
 
-A bodyfile consists of one or more lines with 11 pipe-character ('|') delimited
-values. The [SleuthKit documentation](https://wiki.sleuthkit.org/index.php?title=Body_file)
-defines these values as:
+An extended bodyfile version 3 consists of:
+
+* one or more header comments lines
+* one or more values lines
+
+## Comment lines
+
+The [SleuthKit](https://wiki.sleuthkit.org/index.php?title=Body_file) defines
+a line that start with `#` as comment. The extended bodyfile version 3 format
+uses comment lines to identify the format and store metadata.
+
+Therefore the first line of an extended bodyfile version 3 is used to uniquely
+identify the format and must contain:
+
+```
+# extended bodyfile 3 format
+```
+
+## Values lines
+
+A values line consists of with 11 pipe-character ('|') delimited values. The
+[SleuthKit](https://wiki.sleuthkit.org/index.php?title=Body_file) defines these
+values as:
 
 ```
 MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
@@ -35,7 +56,7 @@ mtime | File entry last modification time.
 ctime | File entry last change (or entry modification) time.
 crtime | File entry creation time.
 
-## MD5 value
+### MD5 value
 
 The SleuthKit documentation does not define the MD5 values. From observations
 the following convention is used:
@@ -44,7 +65,7 @@ the following convention is used:
 * '00000000000000000000000000000000' if "hashing" is enabled but no MD5 was calculated;
 * '[0-9a-f]{32}' if a MD5 was calculated.
 
-## Name value
+### Name value
 
 The name value typically contains a full path of the file entry, but it can also
 contain a symobolic link target using the convention:
@@ -79,7 +100,7 @@ Paths are prefixed with a partition or volume indicator if
 the `list_file_entries.py` script is used to list multiple partitions and/or
 volumes at once.
 
-## Inode value
+### Inode value
 
 The inode value contains an unique identifier of the file entry within the file
 system, which for some file systems is the inode number.
@@ -91,7 +112,7 @@ For the dfVFS NTFS back-end the convention `${MFT_ENTRY}-${SEQUENCE_NUMBER}` is
 used instead of the non-portable [metadata address](https://wiki.sleuthkit.org/index.php?title=Metadata_Address)
 used by the SleuthKit tools.
 
-## Mode_as_string value
+### Mode_as_string value
 
 The mode_as_string value contains a POSIX file mode represented as a string, for
 example 'drwxr-xr-x'.
@@ -114,7 +135,7 @@ group and other.
 
 The SleuthKit specific `[-dlr]/` prefix is not used by the dfImageTools project.
 
-### FAT and NTFS
+#### FAT and NTFS
 
 For the FAT and NTFS dfVFS back-end, dfImageTools uses the following approach
 to generate a mode_as_string value.
@@ -129,7 +150,7 @@ The remaining characters are based on the file attribute flags and will be
 'r-xr-xr-x' if FILE_ATTRIBUTE_READONLY or FILE_ATTRIBUTE_SYSTEM is set or
 'rwxrwxrwx' otherwise.
 
-## Time values
+### Time values
 
 Time values are provided as a number of seconds since January 1, 1970 00:00:00
 (epoch) without a time zone, where negative time values predate the epoch.
@@ -141,5 +162,5 @@ before conversion to POSIX time, was 0.
 
 ## Also see
 
-* [Forensics wiki: Bodyfile](https://forensics.wiki/bodyfile)
+* [Forensics Wiki: Body file](https://forensics.wiki/body_file)
 * [SleuthKit: Body file](https://wiki.sleuthkit.org/index.php?title=Body_file)
