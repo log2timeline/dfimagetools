@@ -192,6 +192,8 @@ def Main():
       else:
         file_entries_generator = entry_lister.ListFileEntries([base_path_spec])
 
+      print('# extended bodyfile 3 format')
+
       bodyfile_generator = bodyfile.BodyfileGenerator()
       for file_entry, path_segments in file_entries_generator:
         for bodyfile_entry in bodyfile_generator.GetEntries(
