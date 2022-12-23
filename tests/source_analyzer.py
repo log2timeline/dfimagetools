@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Tests for the helper to recursively check for volumes and file systems."""
+"""Tests for the helper to volumes and file systems in a storage media image."""
 
 import unittest
 

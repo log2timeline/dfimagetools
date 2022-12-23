@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Script to analyze a source device, file or directory."""
+"""Script to analyze volumes and file systems in a storage media image."""
 
 import argparse
 import logging
@@ -67,7 +67,7 @@ class StdoutWriter(command_line.StdoutOutputWriter):
 
     flags = []
     if scan_node in scan_context.locked_scan_nodes:
-      flags.append('[LOCKED]')
+      flags.append(' [LOCKED]')
 
     type_indicator = scan_node.path_spec.type_indicator
     if type_indicator == dfvfs_definitions.TYPE_INDICATOR_TSK:
@@ -92,13 +92,7 @@ def Main():
     bool: True if successful or False if not.
   """
   argument_parser = argparse.ArgumentParser(description=(
-      'Calculates a message digest hash for every file in a directory or '
-      'storage media image.'))
-
-  argument_parser.add_argument(
-      'source', nargs='?', action='store', metavar='image.raw', default=None,
-      help=('path of the directory or filename of a storage media image '
-            'containing the file.'))
+      'Analyzes volumes and file systems in a storage media image.'))
 
   argument_parser.add_argument(
       '--back_end', '--back-end', dest='back_end', action='store',
@@ -108,6 +102,10 @@ def Main():
       '--no-auto-recurse', '--no_auto_recurse', dest='no_auto_recurse',
       action='store_true', default=False, help=(
           'Indicate that the source scanner should not auto-recurse.'))
+
+  argument_parser.add_argument(
+      'source', nargs='?', action='store', metavar='image.raw',
+      default=None, help='path of the storage media image.')
 
   options = argument_parser.parse_args()
 
