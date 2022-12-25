@@ -14,75 +14,55 @@ from dfimagetools import helpers
 from dfimagetools import source_analyzer
 
 
-class StdoutWriter(command_line.StdoutOutputWriter):
-  """Stdout output writer."""
+def WriteScanNode(scan_context, scan_node, indentation=''):
+  """Writes the source scanner node to stdout.
 
-  def WriteScanContext(self, scan_context, scan_step=None):
-    """Writes the source scanner context to stdout.
+  Args:
+    scan_context (dfvfs.SourceScannerContext): the source scanner context.
+    scan_node (dfvfs.SourceScanNode): the scan node.
+    indentation (Optional[str]): indentation.
+  """
+  if not scan_node:
+    return
 
-    Args:
-      scan_context (dfvfs.SourceScannerContext): the source scanner context.
-      scan_step (Optional[int]): the scan step, where None represents no step.
-    """
-    if scan_step is not None:
-      self.Write(f'Scan step: {scan_step:d}\n')
+  values = []
 
-    self.Write(f'Source type\t\t: {scan_context.source_type:s}\n')
-    self.Write('\n')
+  part_index = getattr(scan_node.path_spec, 'part_index', None)
+  if part_index is not None:
+    values.append(f'{part_index:d}')
 
-    scan_node = scan_context.GetRootScanNode()
-    self.WriteScanNode(scan_context, scan_node)
-    self.Write('\n')
+  store_index = getattr(scan_node.path_spec, 'store_index', None)
+  if store_index is not None:
+    values.append(f'{store_index:d}')
 
-  def WriteScanNode(self, scan_context, scan_node, indentation=''):
-    """Writes the source scanner node to stdout.
+  start_offset = getattr(scan_node.path_spec, 'start_offset', None)
+  if start_offset is not None:
+    values.append(f'start offset: {start_offset:d} (0x{start_offset:08x})')
 
-    Args:
-      scan_context (dfvfs.SourceScannerContext): the source scanner context.
-      scan_node (dfvfs.SourceScanNode): the scan node.
-      indentation (Optional[str]): indentation.
-    """
-    if not scan_node:
-      return
+  location = getattr(scan_node.path_spec, 'location', None)
+  if location is not None:
+    values.append(f'location: {location:s}')
 
-    values = []
+  values = ', '.join(values)
 
-    part_index = getattr(scan_node.path_spec, 'part_index', None)
-    if part_index is not None:
-      values.append(f'{part_index:d}')
+  flags = []
+  if scan_node in scan_context.locked_scan_nodes:
+    flags.append(' [LOCKED]')
 
-    store_index = getattr(scan_node.path_spec, 'store_index', None)
-    if store_index is not None:
-      values.append(f'{store_index:d}')
+  type_indicator = scan_node.path_spec.type_indicator
+  if type_indicator == dfvfs_definitions.TYPE_INDICATOR_TSK:
+    file_system = resolver.Resolver.OpenFileSystem(scan_node.path_spec)
+    if file_system.IsHFS():
+      flags.append('[HFS/HFS+/HFSX]')
+    elif file_system.IsNTFS():
+      flags.append('[NTFS]')
 
-    start_offset = getattr(scan_node.path_spec, 'start_offset', None)
-    if start_offset is not None:
-      values.append(f'start offset: {start_offset:d} (0x{start_offset:08x})')
+  flags = ' '.join(flags)
+  print(f'{indentation:s}{type_indicator:s}: {values:s}{flags:s}')
 
-    location = getattr(scan_node.path_spec, 'location', None)
-    if location is not None:
-      values.append(f'location: {location:s}')
-
-    values = ', '.join(values)
-
-    flags = []
-    if scan_node in scan_context.locked_scan_nodes:
-      flags.append(' [LOCKED]')
-
-    type_indicator = scan_node.path_spec.type_indicator
-    if type_indicator == dfvfs_definitions.TYPE_INDICATOR_TSK:
-      file_system = resolver.Resolver.OpenFileSystem(scan_node.path_spec)
-      if file_system.IsHFS():
-        flags.append('[HFS/HFS+/HFSX]')
-      elif file_system.IsNTFS():
-        flags.append('[NTFS]')
-
-    flags = ' '.join(flags)
-    self.Write(f'{indentation:s}{type_indicator:s}: {values:s}{flags:s}\n')
-
-    indentation = f'  {indentation:s}'
-    for sub_scan_node in scan_node.sub_nodes:
-      self.WriteScanNode(scan_context, sub_scan_node, indentation=indentation)
+  indentation = f'  {indentation:s}'
+  for sub_scan_node in scan_node.sub_nodes:
+    WriteScanNode(scan_context, sub_scan_node, indentation=indentation)
 
 
 def Main():
@@ -121,10 +101,7 @@ def Main():
   logging.basicConfig(
       level=logging.INFO, format='[%(levelname)s] %(message)s')
 
-  output_writer = StdoutWriter()
-
-  mediator = command_line.CLIVolumeScannerMediator(
-      output_writer=output_writer)
+  mediator = command_line.CLIVolumeScannerMediator()
 
   analyzer = source_analyzer.SourceAnalyzer(
       auto_recurse=not options.no_auto_recurse, mediator=mediator)
@@ -135,9 +112,14 @@ def Main():
     scan_step = 0
     for scan_context in analyzer.Analyze(options.source):
       if options.no_auto_recurse:
-        output_writer.WriteScanContext(scan_context, scan_step=scan_step)
-      else:
-        output_writer.WriteScanContext(scan_context)
+        print(f'Scan step: {scan_step:d}')
+
+      print(f'Source type\t\t: {scan_context.source_type:s}')
+      print('')
+
+      scan_node = scan_context.GetRootScanNode()
+      WriteScanNode(scan_context, scan_node)
+      print('')
 
       scan_step += 1
 
