@@ -68,10 +68,26 @@ dfimagetools.path\_resolver module
    :undoc-members:
    :show-inheritance:
 
+dfimagetools.recursive\_hasher module
+-------------------------------------
+
+.. automodule:: dfimagetools.recursive_hasher
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 dfimagetools.resources module
 -----------------------------
 
 .. automodule:: dfimagetools.resources
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+dfimagetools.source\_analyzer module
+------------------------------------
+
+.. automodule:: dfimagetools.source_analyzer
    :members:
    :undoc-members:
    :show-inheritance:
