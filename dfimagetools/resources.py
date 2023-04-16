@@ -6,24 +6,20 @@ class EnvironmentVariable(object):
   """Environment variable.
 
   Attributes:
-    case_sensitive (bool): True if environment variable name is case sensitive.
     name (str): environment variable name such as "SystemRoot" as in
         "%SystemRoot%" or "HOME" as in "$HOME".
     value (str): environment variable value such as "C:\\Windows" or
         "/home/user".
   """
 
-  def __init__(self, case_sensitive=True, name=None, value=None):
+  def __init__(self, name=None, value=None):
     """Initializes an environment variable.
 
     Args:
-      case_sensitive (Optional[bool]): True if environment variable name
-          is case sensitive.
       name (Optional[str]): environment variable name.
       value (Optional[str]): environment variable value.
     """
     super(EnvironmentVariable, self).__init__()
-    self.case_sensitive = case_sensitive
     self.name = name
     self.value = value
 

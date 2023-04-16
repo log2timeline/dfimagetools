@@ -22,17 +22,16 @@ class PathResolverTest(test_lib.BaseTestCase):
     environment_variables = []
 
     environment_variable = resources.EnvironmentVariable(
-        case_sensitive=False, name='allusersappdata',
+        name='allusersappdata',
         value='C:\\Documents and Settings\\All Users\\Application Data')
     environment_variables.append(environment_variable)
 
     environment_variable = resources.EnvironmentVariable(
-        case_sensitive=False, name='allusersprofile',
-        value='C:\\Documents and Settings\\All Users')
+        name='allusersprofile', value='C:\\Documents and Settings\\All Users')
     environment_variables.append(environment_variable)
 
     environment_variable = resources.EnvironmentVariable(
-        case_sensitive=False, name='SystemRoot', value='C:\\Windows')
+        name='SystemRoot', value='C:\\Windows')
     environment_variables.append(environment_variable)
 
     expected_path_segments = [
@@ -77,7 +76,7 @@ class PathResolverTest(test_lib.BaseTestCase):
     environment_variables = []
 
     environment_variable = resources.EnvironmentVariable(
-        case_sensitive=False, name='SystemRoot', value=('bogus', 0))
+        name='SystemRoot', value=('bogus', 0))
     environment_variables.append(environment_variable)
 
     path_segments = test_resolver._ExpandEnvironmentVariablesInPathSegments(
@@ -201,7 +200,7 @@ class PathResolverTest(test_lib.BaseTestCase):
     environment_variables = []
 
     environment_variable = resources.EnvironmentVariable(
-        case_sensitive=False, name='SystemRoot', value='C:\\Windows')
+        name='SystemRoot', value='C:\\Windows')
     environment_variables.append(environment_variable)
 
     expanded_path = test_resolver.ExpandEnvironmentVariables(

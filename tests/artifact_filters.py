@@ -29,7 +29,7 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     registry.ReadFromDirectory(reader, test_artifacts_path)
 
     environment_variables = [resources.EnvironmentVariable(
-        case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
+        name='%SystemRoot%', value='C:\\Windows')]
 
     # Test file artifact definition type.
     test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
@@ -67,7 +67,7 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
 
     # Test expansion of environment variables.
     environment_variables = [resources.EnvironmentVariable(
-        case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
+        name='%SystemRoot%', value='C:\\Windows')]
 
     test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
         registry, environment_variables, [])
@@ -172,7 +172,7 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     registry.ReadFromDirectory(reader, test_artifacts_path)
 
     environment_variables = [resources.EnvironmentVariable(
-        case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
+        name='%SystemRoot%', value='C:\\Windows')]
 
     test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
         registry, environment_variables, [])

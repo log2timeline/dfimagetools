@@ -50,8 +50,7 @@ class WindowsEnvironmentVariablesCollector(object):
     for registry_value in registry_key.GetValues():
       value_string = registry_value.GetDataAsObject()
       yield resources.EnvironmentVariable(
-          case_sensitive=False, name=f'%{registry_value.name:s}%',
-          value=value_string)
+          name=f'%{registry_value.name:s}%', value=value_string)
 
   def _CollectEnvironmentVariablesWithMappings(self, registry_key, mappings):
     """Collects environment variables.
@@ -67,8 +66,7 @@ class WindowsEnvironmentVariablesCollector(object):
       if registry_value:
         value_string = registry_value.GetDataAsObject()
         yield resources.EnvironmentVariable(
-            case_sensitive=False, name=environment_variable_name,
-            value=value_string)
+            name=environment_variable_name, value=value_string)
 
   def Collect(self, registry):
     """Collects environment variables.
