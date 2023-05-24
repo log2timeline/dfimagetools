@@ -10,7 +10,11 @@ def SetDFVFSBackEnd(back_end):
   Args:
     back_end (str): dfVFS back-end.
   """
-  if back_end == 'EXT':
+  if back_end == 'APM':
+    dfvfs_definitions.PREFERRED_APM_BACK_END = (
+        dfvfs_definitions.TYPE_INDICATOR_APM)
+
+  elif back_end == 'EXT':
     dfvfs_definitions.PREFERRED_EXT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_EXT)
 
@@ -31,7 +35,9 @@ def SetDFVFSBackEnd(back_end):
         dfvfs_definitions.TYPE_INDICATOR_NTFS)
 
   elif back_end == 'TSK':
-    dfvfs_definitions.PREFERRED_EXT_BACK_END = (
+    dfvfs_definitions.PREFERRED_APM_BACK_END = (
+        dfvfs_definitions.TYPE_INDICATOR_TSK)
+    dfvfs_definitions.PREFERRED_APM_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_TSK)
     dfvfs_definitions.PREFERRED_FAT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_TSK)
