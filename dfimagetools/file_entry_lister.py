@@ -43,22 +43,22 @@ class FileEntryLister(volume_scanner.VolumeScanner):
     Returns:
       list[str]: path segments.
     """
-    if not base_path_spec.HasParent() or not base_path_spec.parent:
+    if not base_path_spec:
       return ['']
 
-    if base_path_spec.parent.type_indicator in (
+    path_segments = self._GetBasePathSegments(base_path_spec.parent)
+
+    if base_path_spec.type_indicator in (
         dfvfs_definitions.TYPE_INDICATOR_APFS_CONTAINER,
         dfvfs_definitions.TYPE_INDICATOR_GPT,
         dfvfs_definitions.TYPE_INDICATOR_LVM):
       volume_system = dfvfs_volume_system_factory.Factory.NewVolumeSystem(
-          base_path_spec.parent.type_indicator)
-      volume_system.Open(base_path_spec.parent)
+          base_path_spec.type_indicator)
+      volume_system.Open(base_path_spec)
 
-      volume = volume_system.GetVolumeByIdentifier(
-          base_path_spec.parent.location[1:])
+      volume = volume_system.GetVolumeByIdentifier(base_path_spec.location[1:])
 
-      if base_path_spec.parent.type_indicator == (
-          dfvfs_definitions.TYPE_INDICATOR_GPT):
+      if base_path_spec.type_indicator == dfvfs_definitions.TYPE_INDICATOR_GPT:
         volume_identifier_prefix = 'gpt'
       else:
         volume_identifier_prefix = volume_system.VOLUME_IDENTIFIER_PREFIX
@@ -67,13 +67,15 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
       volume_path_segment = (
           f'{volume_identifier_prefix:s}{{{volume_identifier.value:s}}}')
-      return ['', volume_path_segment]
+      path_segments.append(volume_path_segment)
+      return path_segments
 
-    if base_path_spec.parent.type_indicator == (
+    if base_path_spec.type_indicator == (
         dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION):
-      return base_path_spec.parent.location.split('/')
+      path_segments.append(base_path_spec.location[1:])
+      return path_segments
 
-    return ['']
+    return path_segments
 
   def _GetPathSpecificationString(self, path_spec):
     """Retrieves a printable string representation of the path specification.
@@ -163,7 +165,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
             path_specification_string]))
         return
 
-      base_path_segments = self._GetBasePathSegments(base_path_spec)
+      base_path_segments = self._GetBasePathSegments(base_path_spec.parent)
       for result in self._ListFileEntry(
           file_system, file_entry, base_path_segments):
         yield result
@@ -189,7 +191,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       else:
         mount_point = base_path_spec.parent
 
-      base_path_segments = self._GetBasePathSegments(base_path_spec)
+      base_path_segments = self._GetBasePathSegments(base_path_spec.parent)
 
       searcher = file_system_searcher.FileSystemSearcher(
           file_system, mount_point)
