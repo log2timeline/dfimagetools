@@ -51,6 +51,13 @@ def Main():
 
   # TODO: add output group
   argument_parser.add_argument(
+      '--no_aliases', '--no-aliases', dest='use_aliases', action='store_false',
+      default=True, help=(
+          'Disable the use of partition and/or volume aliases such as '
+          '/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices '
+          'such as /apfs1 instead.'))
+
+  argument_parser.add_argument(
       '--output_format', '--output-format', dest='output_format',
       action='store', metavar='FORMAT', default='bodyfile', help=(
           'output format, default is bodyfile.'))
@@ -151,7 +158,8 @@ def Main():
       elif os.path.isfile(options.custom_artifact_definitions):
         registry.ReadFromFile(reader, options.custom_artifact_definitions)
 
-  entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
+  entry_lister = file_entry_lister.FileEntryLister(
+      mediator=mediator, use_aliases=options.use_aliases)
   find_specs_generated = False
 
   try:

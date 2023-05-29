@@ -96,7 +96,7 @@ a backslash ('\\'):
 * U+007f (delete, non-printable)
 * U+0080 - U+009f (C1 control codes, non-printable)
 
-Paths are prefixed with a partition or volume indicator if
+Paths are prefixed with a partition and/or volume indicator if
 the `list_file_entries.py` script is used to list multiple partitions and/or
 volumes at once.
 

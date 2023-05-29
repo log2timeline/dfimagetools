@@ -25,14 +25,18 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       'C:\\WINNT35',
   ])
 
-  def __init__(self, mediator=None):
+  def __init__(self, mediator=None, use_aliases=True):
     """Initializes a file entry lister.
 
     Args:
-      mediator (dfvfs.VolumeScannerMediator): a volume scanner mediator.
+      mediator (Optional[dfvfs.VolumeScannerMediator]): a volume scanner
+          mediator.
+      use_aliases (Optional[bool]): True if partition and/or volume aliases
+          should be used.
     """
     super(FileEntryLister, self).__init__(mediator=mediator)
     self._list_only_files = False
+    self._use_aliases = use_aliases
 
   def _GetBasePathSegments(self, base_path_spec):
     """Retrieves the base path segments.
@@ -48,17 +52,23 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     path_segments = self._GetBasePathSegments(base_path_spec.parent)
 
-    if base_path_spec.type_indicator in (
+    type_indicator = base_path_spec.type_indicator
+
+    if type_indicator in (
         dfvfs_definitions.TYPE_INDICATOR_APFS_CONTAINER,
         dfvfs_definitions.TYPE_INDICATOR_GPT,
         dfvfs_definitions.TYPE_INDICATOR_LVM):
+      if not self._use_aliases:
+        path_segments.append(base_path_spec.location[1:])
+        return path_segments
+
       volume_system = dfvfs_volume_system_factory.Factory.NewVolumeSystem(
-          base_path_spec.type_indicator)
+          type_indicator)
       volume_system.Open(base_path_spec)
 
       volume = volume_system.GetVolumeByIdentifier(base_path_spec.location[1:])
 
-      if base_path_spec.type_indicator == dfvfs_definitions.TYPE_INDICATOR_GPT:
+      if type_indicator == dfvfs_definitions.TYPE_INDICATOR_GPT:
         volume_identifier_prefix = 'gpt'
       else:
         volume_identifier_prefix = volume_system.VOLUME_IDENTIFIER_PREFIX
@@ -70,8 +80,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       path_segments.append(volume_path_segment)
       return path_segments
 
-    if base_path_spec.type_indicator == (
-        dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION):
+    if type_indicator == dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION:
       path_segments.append(base_path_spec.location[1:])
       return path_segments
 
