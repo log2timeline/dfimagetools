@@ -25,6 +25,14 @@ def Main():
       'Calculates a message digest hash for every file in a directory or '
       'storage media image.'))
 
+  # TODO: add output group
+  argument_parser.add_argument(
+      '--no_aliases', '--no-aliases', dest='use_aliases', action='store_false',
+      default=True, help=(
+          'Disable the use of partition and/or volume aliases such as '
+          '/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices '
+          'such as /apfs1 instead.'))
+
   # TODO: add source group
   argument_parser.add_argument(
       '--back_end', '--back-end', dest='back_end', action='store',
@@ -90,7 +98,8 @@ def Main():
   volume_scanner_options.volumes = mediator.ParseVolumeIdentifiersString(
       options.volumes)
 
-  entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
+  entry_lister = file_entry_lister.FileEntryLister(
+      mediator=mediator, use_aliases=options.use_aliases)
 
   try:
     base_path_specs = entry_lister.GetBasePathSpecs(
