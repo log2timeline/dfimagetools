@@ -95,6 +95,7 @@ a backslash ('\\'):
 * U+007c (pipe '|', used as value delimiter)
 * U+007f (delete, non-printable)
 * U+0080 - U+009f (C1 control codes, non-printable)
+* U+d800 - U+dfff (Unicode surrogate values)
 
 Paths are prefixed with a partition and/or volume indicator if
 the `list_file_entries.py` script is used to list multiple partitions and/or
