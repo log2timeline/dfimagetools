@@ -36,6 +36,14 @@ dfimagetools.decorators module
    :undoc-members:
    :show-inheritance:
 
+dfimagetools.definitions module
+-------------------------------
+
+.. automodule:: dfimagetools.definitions
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 dfimagetools.environment\_variables module
 ------------------------------------------
 

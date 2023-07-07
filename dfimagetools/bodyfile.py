@@ -6,19 +6,19 @@ from dfdatetime import definitions as dfdatetime_definitions
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.vfs import ntfs_attribute as dfvfs_ntfs_attribute
 
+from dfimagetools import definitions
+
 
 class BodyfileGenerator(object):
   """Bodyfile generator."""
-
-  _NON_PRINTABLE_CHARACTERS = list(range(0, 0x20)) + list(range(0x7f, 0xa0))
 
   _ESCAPE_CHARACTERS = {
       '/': '\\/',
       ':': '\\:',
       '\\': '\\\\',
       '|': '\\|'}
-  _ESCAPE_CHARACTERS.update({
-      value: f'\\x{value:02x}' for value in _NON_PRINTABLE_CHARACTERS})
+
+  _ESCAPE_CHARACTERS.update(definitions.NON_PRINTABLE_CHARACTERS)
 
   _FILE_TYPES = {
       0x1000: 'p',

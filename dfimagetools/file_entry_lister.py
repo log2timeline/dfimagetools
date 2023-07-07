@@ -2,7 +2,6 @@
 """Helper to list file entries."""
 
 import logging
-import re
 
 from dfvfs.helpers import file_system_searcher
 from dfvfs.helpers import volume_scanner
@@ -12,11 +11,11 @@ from dfvfs.path import factory as dfvfs_path_spec_factory
 from dfvfs.resolver import resolver as dfvfs_resolver
 from dfvfs.volume import factory as dfvfs_volume_system_factory
 
+from dfimagetools import definitions
+
 
 class FileEntryLister(volume_scanner.VolumeScanner):
   """File entry lister."""
-
-  _UNICODE_SURROGATES_RE = re.compile('[\ud800-\udfff]')
 
   _WINDOWS_DIRECTORIES = frozenset([
       'C:\\Windows',
@@ -86,25 +85,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
     return path_segments
 
-  def _GetPathSpecificationString(self, path_spec):
-    """Retrieves a printable string representation of the path specification.
-
-    Args:
-      path_spec (dfvfs.PathSpec): path specification.
-
-    Returns:
-      str: printable string representation of the path specification.
-    """
-    path_spec_string = path_spec.comparable
-
-    if self._UNICODE_SURROGATES_RE.search(path_spec_string):
-      path_spec_string = path_spec_string.encode(
-          'utf-8', errors='surrogateescape')
-      path_spec_string = path_spec_string.decode(
-          'utf-8', errors='backslashreplace')
-
-    return path_spec_string
-
   def _ListFileEntry(self, file_system, file_entry, parent_path_segments):
     """Lists a file entry.
 
@@ -167,8 +147,8 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       file_system = dfvfs_resolver.Resolver.OpenFileSystem(base_path_spec)
       file_entry = dfvfs_resolver.Resolver.OpenFileEntry(base_path_spec)
       if file_entry is None:
-        path_specification_string = self._GetPathSpecificationString(
-            base_path_spec)
+        path_specification_string = base_path_spec.comparable.translate(
+            definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE)
         logging.warning(''.join([
             'Unable to open base path specification:\n',
             path_specification_string]))
