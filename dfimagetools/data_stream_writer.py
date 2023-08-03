@@ -29,7 +29,7 @@ class DataStreamWriter(object):
     super(DataStreamWriter, self).__init__()
     self._display_escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
     self._invalid_path_characters = str.maketrans({
-      value: '_' for value in self._INVALID_PATH_CHARACTERS})
+        value: '_' for value in self._INVALID_PATH_CHARACTERS})
 
   def GetDisplayPath(
       self, source_path_segments, source_data_stream_name):
