@@ -3,31 +3,23 @@
 
 import os
 
+from dfimagetools import definitions
+
 
 class DataStreamWriter(object):
   """Data stream writer."""
 
-  _BUFFER_SIZE = 32768
-
-  _NON_PRINTABLE_CHARACTERS = list(range(0, 0x20)) + list(range(0x7f, 0xa0))
-
-  _ESCAPE_CHARACTERS = {
-      '/': '\\/',
-      ':': '\\:',
-      '\\': '\\\\',
-      '|': '\\|'}
-  _ESCAPE_CHARACTERS.update({
-      value: f'\\x{value:02x}' for value in _NON_PRINTABLE_CHARACTERS})
+  # Class constant that defines the default read buffer size.
+  _READ_BUFFER_SIZE = 16 * 1024 * 1024
 
   _INVALID_PATH_CHARACTERS = [
       os.path.sep, '!', '$', '%', '&', '*', '+', ':', ';', '<', '>', '?', '@',
       '|', '~']
-  _INVALID_PATH_CHARACTERS.extend(_NON_PRINTABLE_CHARACTERS)
+  _INVALID_PATH_CHARACTERS.extend(definitions.NON_PRINTABLE_CHARACTERS.keys())
 
   def __init__(self):
     """Initializes a data stream writer."""
     super(DataStreamWriter, self).__init__()
-    self._display_escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
     self._invalid_path_characters = str.maketrans({
         value: '_' for value in self._INVALID_PATH_CHARACTERS})
 
@@ -43,7 +35,8 @@ class DataStreamWriter(object):
       str: display path.
     """
     path_segments = [
-        path_segment.translate(self._display_escape_characters)
+        path_segment.translate(
+            definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE)
         for path_segment in source_path_segments]
 
     display_path = '/'.join(path_segments)
@@ -96,7 +89,7 @@ class DataStreamWriter(object):
       with open(destination_path, 'wb') as destination_file_object:
         source_file_object.seek(0, os.SEEK_SET)
 
-        data = source_file_object.read(self._BUFFER_SIZE)
+        data = source_file_object.read(self._READ_BUFFER_SIZE)
         while data:
           destination_file_object.write(data)
-          data = source_file_object.read(self._BUFFER_SIZE)
+          data = source_file_object.read(self._READ_BUFFER_SIZE)

@@ -20,34 +20,28 @@ class DataStreamWriterTest(test_lib.BaseTestCase):
 
   # pylint: disable=protected-access
 
+  _FILE_DATA = b'\n'.join([
+      b'place,user,password',
+      b'bank,joesmith,superrich',
+      b'alarm system,-,1234',
+      b'treasure chest,-,1111',
+      b'uber secret laire,admin,admin',
+      b''])
+
+  def testGetDisplayPath(self):
+    """Tests the GetDisplayPath function."""
+    test_data_stream_writer = data_stream_writer.DataStreamWriter()
+
+    display_path = test_data_stream_writer.GetDisplayPath(
+        ['passwords.txt'], 'data_stream')
+    self.assertEqual(display_path, 'passwords.txt:data_stream')
+
   def testGetSanitizedPath(self):
     """Tests the GetSanitizedPath function."""
-    path = self._GetTestFilePath(['image.qcow2'])
-    self._SkipIfPathNotExists(path)
-
-    path_spec = path_spec_factory.Factory.NewPathSpec(
-        dfvfs_definitions.TYPE_INDICATOR_OS, location=path)
-    path_spec = path_spec_factory.Factory.NewPathSpec(
-        dfvfs_definitions.TYPE_INDICATOR_QCOW, parent=path_spec)
-    path_spec = path_spec_factory.Factory.NewPathSpec(
-        dfvfs_definitions.TYPE_INDICATOR_TSK, location='/passwords.txt',
-        parent=path_spec)
-
-    file_system = resolver.Resolver.OpenFileSystem(path_spec)
-    file_entry = resolver.Resolver.OpenFileEntry(path_spec)
-
-    test_lister = file_entry_lister.FileEntryLister()
-    file_entries = list(test_lister._ListFileEntry(
-        file_system, file_entry, ['']))
-
-    self.assertEqual(len(file_entries), 1)
-
-    _, path_segments = file_entries[0]
-
     test_data_stream_writer = data_stream_writer.DataStreamWriter()
 
     sanitized_path = test_data_stream_writer.GetSanitizedPath(
-        path_segments, '', '')
+        ['passwords.txt'], '', '')
     self.assertEqual(sanitized_path, 'passwords.txt')
 
   def testWriteDataStream(self):
@@ -80,7 +74,10 @@ class DataStreamWriterTest(test_lib.BaseTestCase):
       destination_path = os.path.join(temp_directory, 'passwords.txt')
       test_data_stream_writer.WriteDataStream(file_entry, '', destination_path)
 
-      # TODO: check contents of exported file
+      with open(destination_path, 'rb') as file_object:
+        file_data = file_object.read()
+
+      self.assertEqual(file_data, self._FILE_DATA)
 
 
 if __name__ == '__main__':
