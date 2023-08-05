@@ -21,8 +21,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       'C:\\Windows',
       'C:\\WINNT',
       'C:\\WTSRV',
-      'C:\\WINNT35',
-  ])
+      'C:\\WINNT35'])
 
   def __init__(self, mediator=None, use_aliases=True):
     """Initializes a file entry lister.
