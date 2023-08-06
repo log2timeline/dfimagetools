@@ -7,6 +7,7 @@ import logging
 
 from dfimagetools import definitions
 
+
 class RecursiveHasher(object):
   """Recursively calculates message digest hashes of data streams."""
 
