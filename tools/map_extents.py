@@ -7,12 +7,10 @@ import logging
 import sys
 
 from dfvfs.lib import definitions as dfvfs_definitions
-from dfvfs.helpers import command_line
-from dfvfs.helpers import volume_scanner
 from dfvfs.lib import errors
 
 from dfimagetools import file_entry_lister
-from dfimagetools import helpers
+from dfimagetools.helpers import command_line
 
 
 def Main():
@@ -24,36 +22,7 @@ def Main():
   argument_parser = argparse.ArgumentParser(description=(
       'Maps extents in a storage media image.'))
 
-  argument_parser.add_argument(
-      '--back_end', '--back-end', dest='back_end', action='store',
-      metavar='NTFS', default=None, help='preferred dfVFS back-end.')
-
-  argument_parser.add_argument(
-      '--partitions', '--partition', dest='partitions', action='store',
-      type=str, default=None, help=(
-          'Define partitions to be processed. A range of partitions can be '
-          'defined as: "3..5". Multiple partitions can be defined as: "1,3,5" '
-          '(a list of comma separated values). Ranges and lists can also be '
-          'combined as: "1,3..5". The first partition is 1. All partitions '
-          'can be specified with: "all".'))
-
-  argument_parser.add_argument(
-      '--snapshots', '--snapshot', dest='snapshots', action='store', type=str,
-      default=None, help=(
-          'Define snapshots to be processed. A range of snapshots can be '
-          'defined as: "3..5". Multiple snapshots can be defined as: "1,3,5" '
-          '(a list of comma separated values). Ranges and lists can also be '
-          'combined as: "1,3..5". The first snapshot is 1. All snapshots can '
-          'be specified with: "all".'))
-
-  argument_parser.add_argument(
-      '--volumes', '--volume', dest='volumes', action='store', type=str,
-      default=None, help=(
-          'Define volumes to be processed. A range of volumes can be defined '
-          'as: "3..5". Multiple volumes can be defined as: "1,3,5" (a list '
-          'of comma separated values). Ranges and lists can also be combined '
-          'as: "1,3..5". The first volume is 1. All volumes can be specified '
-          'with: "all".'))
+  command_line.AddStorageMediaImageCLIArguments(argument_parser)
 
   argument_parser.add_argument(
       'source', nargs='?', action='store', metavar='image.raw',
@@ -70,25 +39,11 @@ def Main():
 
   # TODO: add support to write extent map entry to a SQLite database
 
-  helpers.SetDFVFSBackEnd(options.back_end)
-
   logging.basicConfig(
       level=logging.INFO, format='[%(levelname)s] %(message)s')
 
-  mediator = command_line.CLIVolumeScannerMediator()
-
-  volume_scanner_options = volume_scanner.VolumeScannerOptions()
-  volume_scanner_options.partitions = mediator.ParseVolumeIdentifiersString(
-      options.partitions)
-
-  if options.snapshots == 'none':
-    volume_scanner_options.snapshots = ['none']
-  else:
-    volume_scanner_options.snapshots = mediator.ParseVolumeIdentifiersString(
-        options.snapshots)
-
-  volume_scanner_options.volumes = mediator.ParseVolumeIdentifiersString(
-      options.volumes)
+  mediator, volume_scanner_options = (
+      command_line.ParseStorageMediaImageCLIArguments(options))
 
   entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
   return_value = True
