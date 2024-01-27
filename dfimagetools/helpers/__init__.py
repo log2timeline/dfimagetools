@@ -3,7 +3,11 @@
 
 from dfvfs.lib import definitions as dfvfs_definitions
 
+from dfimagetools import decorators
 
+
+# This function is deprecated use the one in backend.py instead.
+@decorators.deprecated
 def SetDFVFSBackEnd(back_end):
   """Sets the dfVFS back-end.
 

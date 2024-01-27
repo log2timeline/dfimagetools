@@ -6,12 +6,12 @@ import argparse
 import logging
 import sys
 
-from dfvfs.helpers import command_line
+from dfvfs.helpers import command_line as dfvfs_command_line
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
 
-from dfimagetools import helpers
 from dfimagetools import source_analyzer
+from dfimagetools.helpers import backend
 
 
 def WriteScanNode(scan_context, scan_node, indentation=''):
@@ -96,12 +96,12 @@ def Main():
     print('')
     return False
 
-  helpers.SetDFVFSBackEnd(options.back_end)
+  backend.SetDFVFSBackEnd(options.back_end)
 
   logging.basicConfig(
       level=logging.INFO, format='[%(levelname)s] %(message)s')
 
-  mediator = command_line.CLIVolumeScannerMediator()
+  mediator = dfvfs_command_line.CLIVolumeScannerMediator()
 
   analyzer = source_analyzer.SourceAnalyzer(
       auto_recurse=not options.no_auto_recurse, mediator=mediator)

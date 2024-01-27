@@ -10,15 +10,13 @@ import sys
 from artifacts import reader as artifacts_reader
 from artifacts import registry as artifacts_registry
 
-from dfvfs.helpers import command_line as dfvfs_command_line
-from dfvfs.helpers import volume_scanner as dfvfs_volume_scanner
 from dfvfs.lib import errors as dfvfs_errors
 
 from dfimagetools import artifact_filters
 from dfimagetools import bodyfile
 from dfimagetools import file_entry_lister
-from dfimagetools import helpers
 from dfimagetools import windows_registry
+from dfimagetools.helpers import command_line
 
 
 def Main():
@@ -62,37 +60,8 @@ def Main():
       action='store', metavar='FORMAT', default='bodyfile', help=(
           'output format, default is bodyfile.'))
 
-  # TODO: add source group
-  argument_parser.add_argument(
-      '--back_end', '--back-end', dest='back_end', action='store',
-      metavar='NTFS', default=None, help='preferred dfVFS back-end.')
-
-  argument_parser.add_argument(
-      '--partitions', '--partition', dest='partitions', action='store',
-      type=str, default=None, help=(
-          'Define partitions to be processed. A range of partitions can be '
-          'defined as: "3..5". Multiple partitions can be defined as: "1,3,5" '
-          '(a list of comma separated values). Ranges and lists can also be '
-          'combined as: "1,3..5". The first partition is 1. All partitions '
-          'can be specified with: "all".'))
-
-  argument_parser.add_argument(
-      '--snapshots', '--snapshot', dest='snapshots', action='store', type=str,
-      default=None, help=(
-          'Define snapshots to be processed. A range of snapshots can be '
-          'defined as: "3..5". Multiple snapshots can be defined as: "1,3,5" '
-          '(a list of comma separated values). Ranges and lists can also be '
-          'combined as: "1,3..5". The first snapshot is 1. All snapshots can '
-          'be specified with: "all".'))
-
-  argument_parser.add_argument(
-      '--volumes', '--volume', dest='volumes', action='store', type=str,
-      default=None, help=(
-          'Define volumes to be processed. A range of volumes can be defined '
-          'as: "3..5". Multiple volumes can be defined as: "1,3,5" (a list '
-          'of comma separated values). Ranges and lists can also be combined '
-          'as: "1,3..5". The first volume is 1. All volumes can be specified '
-          'with: "all".'))
+  # TODO: add source group.
+  command_line.AddStorageMediaImageCLIArguments(argument_parser)
 
   argument_parser.add_argument(
       'source', nargs='?', action='store', metavar='image.raw',
@@ -122,25 +91,11 @@ def Main():
       print('')
       return False
 
-  helpers.SetDFVFSBackEnd(options.back_end)
-
   logging.basicConfig(
       level=logging.INFO, format='[%(levelname)s] %(message)s')
 
-  mediator = dfvfs_command_line.CLIVolumeScannerMediator()
-
-  volume_scanner_options = dfvfs_volume_scanner.VolumeScannerOptions()
-  volume_scanner_options.partitions = mediator.ParseVolumeIdentifiersString(
-      options.partitions)
-
-  if options.snapshots == 'none':
-    volume_scanner_options.snapshots = ['none']
-  else:
-    volume_scanner_options.snapshots = mediator.ParseVolumeIdentifiersString(
-        options.snapshots)
-
-  volume_scanner_options.volumes = mediator.ParseVolumeIdentifiersString(
-      options.volumes)
+  mediator, volume_scanner_options = (
+      command_line.ParseStorageMediaImageCLIArguments(options))
 
   if options.artifact_filters:
     registry = artifacts_registry.ArtifactDefinitionsRegistry()
