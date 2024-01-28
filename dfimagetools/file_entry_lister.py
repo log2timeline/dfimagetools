@@ -78,6 +78,12 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       path_segments.append(volume_path_segment)
       return path_segments
 
+    if type_indicator in (
+        dfvfs_definitions.TYPE_INDICATOR_BDE,
+        dfvfs_definitions.TYPE_INDICATOR_LUKSDE):
+      path_segments.append(type_indicator)
+      return path_segments
+
     if type_indicator == dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION:
       path_segments.append(base_path_spec.location[1:])
       return path_segments
