@@ -13,12 +13,7 @@ from dfimagetools import file_entry_lister
 from dfimagetools.helpers import command_line
 
 
-def Main():
-  """The main program function.
-
-  Returns:
-    bool: True if successful or False if not.
-  """
+if __name__ == '__main__':
   argument_parser = argparse.ArgumentParser(description=(
       'Maps extents in a storage media image.'))
 
@@ -35,7 +30,7 @@ def Main():
     print('')
     argument_parser.print_help()
     print('')
-    return False
+    sys.exit(1)
 
   # TODO: add support to write extent map entry to a SQLite database
 
@@ -46,7 +41,6 @@ def Main():
       command_line.ParseStorageMediaImageCLIArguments(options))
 
   entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
-  return_value = True
 
   try:
     base_path_specs = entry_lister.GetBasePathSpecs(
@@ -54,7 +48,7 @@ def Main():
     if not base_path_specs:
       print('No supported file system found in source.')
       print('')
-      return False
+      sys.exit(1)
 
     # TODO: error if not a storage media image or device
 
@@ -86,20 +80,11 @@ def Main():
                   f'{extent_type:s}\t{data_stream_path:s}')
 
   except errors.ScannerError as exception:
-    return_value = False
-
     print(f'[ERROR] {exception!s}', file=sys.stderr)
+    sys.exit(1)
 
   except KeyboardInterrupt:
-    return_value = False
-
     print('Aborted by user.', file=sys.stderr)
-
-  return return_value
-
-
-if __name__ == '__main__':
-  if not Main():
     sys.exit(1)
-  else:
-    sys.exit(0)
+
+  sys.exit(0)

@@ -19,12 +19,7 @@ from dfimagetools import windows_registry
 from dfimagetools.helpers import command_line
 
 
-def Main():
-  """The main program function.
-
-  Returns:
-    bool: True if successful or False if not.
-  """
+if __name__ == '__main__':
   argument_parser = argparse.ArgumentParser(description=(
       'Lists metadata of file entries in a storage media image.'))
 
@@ -74,14 +69,14 @@ def Main():
     print('')
     argument_parser.print_help()
     print('')
-    return False
+    sys.exit(1)
 
   if options.output_format != 'bodyfile':
     print(f'Unsupported output format: {options.output_format:s}.')
     print('')
     argument_parser.print_help()
     print('')
-    return False
+    sys.exit(1)
 
   if options.artifact_filters:
     if (not options.artifact_definitions and
@@ -89,7 +84,7 @@ def Main():
       print('[ERROR] artifact filters were specified but no paths to '
             'artifact definitions were provided.')
       print('')
-      return False
+      sys.exit(1)
 
   logging.basicConfig(
       level=logging.INFO, format='[%(levelname)s] %(message)s')
@@ -123,7 +118,9 @@ def Main():
     if not base_path_specs:
       print('No supported file system found in source.')
       print('')
-      return False
+      sys.exit(1)
+
+    bodyfile_header_printed = False
 
     for base_path_spec in base_path_specs:
       if not options.artifact_filters:
@@ -155,7 +152,9 @@ def Main():
       else:
         file_entries_generator = entry_lister.ListFileEntries([base_path_spec])
 
-      print('# extended bodyfile 3 format')
+      if not bodyfile_header_printed:
+        print('# extended bodyfile 3 format')
+        bodyfile_header_printed = True
 
       bodyfile_generator = bodyfile.BodyfileGenerator()
       for file_entry, path_segments in file_entries_generator:
@@ -166,24 +165,17 @@ def Main():
   except dfvfs_errors.ScannerError as exception:
     print(f'[ERROR] {exception!s}', file=sys.stderr)
     print('')
-    return False
+    sys.exit(1)
 
   except KeyboardInterrupt:
     print('Aborted by user.', file=sys.stderr)
     print('')
-    return False
+    sys.exit(1)
 
   if options.artifact_filters and not find_specs_generated:
     print('[ERROR] an artifact filter was specified but no corresponding '
           'file system find specifications were generated.')
     print('')
-    return False
-
-  return True
-
-
-if __name__ == '__main__':
-  if not Main():
     sys.exit(1)
-  else:
-    sys.exit(0)
+
+  sys.exit(0)
