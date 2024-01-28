@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    dfimagetools.helpers
+   dfimagetools.scripts
 
 Submodules
 ----------
@@ -48,14 +49,6 @@ dfimagetools.definitions module
 -------------------------------
 
 .. automodule:: dfimagetools.definitions
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-dfimagetools.entry\_points module
----------------------------------
-
-.. automodule:: dfimagetools.entry_points
    :members:
    :undoc-members:
    :show-inheritance:
