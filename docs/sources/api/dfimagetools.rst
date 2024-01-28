@@ -52,6 +52,14 @@ dfimagetools.definitions module
    :undoc-members:
    :show-inheritance:
 
+dfimagetools.entry\_points module
+---------------------------------
+
+.. automodule:: dfimagetools.entry_points
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 dfimagetools.environment\_variables module
 ------------------------------------------
 
