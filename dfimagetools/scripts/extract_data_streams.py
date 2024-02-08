@@ -15,6 +15,7 @@ from dfvfs.lib import errors as dfvfs_errors
 from dfimagetools import artifact_filters
 from dfimagetools import data_stream_writer
 from dfimagetools import file_entry_lister
+from dfimagetools import path_filters
 from dfimagetools import windows_registry
 from dfimagetools.helpers import command_line
 
@@ -47,7 +48,18 @@ def Main():
           'Path to a directory or file containing custom artifact definition '
           '.yaml files. '))
 
+  argument_parser.add_argument(
+      '--path', dest='path_filter', type=str, default=None, metavar='PATH',
+      action='store', help='Path of data stream to extract.')
+
   # TODO: add output group
+  argument_parser.add_argument(
+      '--no_aliases', '--no-aliases', dest='use_aliases', action='store_false',
+      default=True, help=(
+          'Disable the use of partition and/or volume aliases such as '
+          '/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices '
+          'such as /apfs1 instead.'))
+
   argument_parser.add_argument(
       '-t', '--target', dest='target', action='store', metavar='PATH',
       default=None, help=(
@@ -78,9 +90,8 @@ def Main():
       print('')
       return 1
 
-  # TODO: improve this, for now this script needs at least 1 filter.
-  if not options.artifact_filters:
-    print('[ERROR] no artifact filters were specified.')
+  elif not options.path_filter:
+    print('[ERROR] no extraction filters were specified.')
     print('')
     return 1
 
@@ -120,7 +131,21 @@ def Main():
       elif os.path.isfile(options.custom_artifact_definitions):
         registry.ReadFromFile(reader, options.custom_artifact_definitions)
 
-  entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
+    filter_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
+        registry)
+
+  elif options.path_filter:
+    filter_generator = path_filters.PathFiltersGenerator(options.path_filter)
+
+    if filter_generator.partition and options.partitions:
+      print(('[WARNING] partition specified in path filter will override '
+             '--partitions command line argument.'))
+      print('')
+
+      volume_scanner_options.partitions = [filter_generator.partition]
+
+  entry_lister = file_entry_lister.FileEntryLister(
+      mediator=mediator, use_aliases=options.use_aliases)
   find_specs_generated = False
 
   try:
@@ -132,24 +157,31 @@ def Main():
       return 1
 
     for base_path_spec in base_path_specs:
-      if not options.artifact_filters:
-        find_specs = []
-      else:
+      find_specs = []
+
+      if options.artifact_filters:
+        environment_variables = []
+        user_accounts = []
+
         windows_directory = entry_lister.GetWindowsDirectory(base_path_spec)
-        if not windows_directory:
-          environment_variables = []
-        else:
+        if windows_directory:
           winregistry_collector = windows_registry.WindowsRegistryCollector(
               base_path_spec, windows_directory)
 
           environment_variables = (
               winregistry_collector.CollectSystemEnvironmentVariables())
 
-        filter_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-            registry, environment_variables, [])
+        # TODO: determine user accounts.
 
         names = options.artifact_filters.split(',')
-        find_specs = list(filter_generator.GetFindSpecs(names))
+        find_specs = list(filter_generator.GetFindSpecs(
+            names=names, environment_variables=environment_variables,
+            user_accounts=user_accounts))
+
+      elif options.path_filter:
+        find_specs = list(filter_generator.GetFindSpecs())
+
+      if filter_generator:
         if not find_specs:
           continue
 
@@ -184,8 +216,8 @@ def Main():
     return 1
 
   if options.artifact_filters and not find_specs_generated:
-    print('[ERROR] an artifact filter was specified but no corresponding '
-          'file system find specifications were generated.')
+    print('[ERROR] an extraction filter was specified but no corresponding '
+          'find specifications were generated.')
     print('')
     return 1
 

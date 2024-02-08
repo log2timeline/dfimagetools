@@ -13,14 +13,19 @@ from dfimagetools import path_resolver
 class ArtifactDefinitionFiltersGenerator(object):
   """Generator of filters based on artifact definitions."""
 
-  def __init__(self, artifacts_registry, environment_variables, user_accounts):
+  # TODO: passing environment_variables and user_accounts via __init__ is
+  # deprecated.
+
+  def __init__(
+      self, artifacts_registry, environment_variables=None, user_accounts=None):
     """Initializes an artifact definition filters generator.
 
     Args:
       artifacts_registry (artifacts.ArtifactDefinitionsRegistry): artifact
           definitions registry.
-      environment_variables (list[EnvironmentVariable]): environment variables.
-      user_accounts (list[UserAccount]): user accounts.
+      environment_variables (Optional[list[EnvironmentVariable]]): environment
+          variables.
+      user_accounts (Optional[list[UserAccount]]]): user accounts.
     """
     super(ArtifactDefinitionFiltersGenerator, self).__init__()
     self._artifacts_registry = artifacts_registry
@@ -28,11 +33,15 @@ class ArtifactDefinitionFiltersGenerator(object):
     self._path_resolver = path_resolver.PathResolver()
     self._user_accounts = user_accounts
 
-  def _BuildFindSpecsFromArtifactDefinition(self, name):
+  def _BuildFindSpecsFromArtifactDefinition(
+      self, name, environment_variables=None, user_accounts=None):
     """Builds find specifications from an artifact definition.
 
     Args:
       name (str): name of the artifact definition.
+      environment_variables (Optional[list[EnvironmentVariable]]): environment
+          variables.
+      user_accounts (Optional[list[UserAccount]]): user accounts.
 
     Yields:
       dfvfs.FindSpec: file system (dfVFS) find specification.
@@ -61,7 +70,8 @@ class ArtifactDefinitionFiltersGenerator(object):
         if source_type == artifacts_definitions.TYPE_INDICATOR_ARTIFACT_GROUP:
           for source_name in set(source.names):
             for find_spec in self._BuildFindSpecsFromArtifactDefinition(
-                source_name):
+                source_name, environment_variables=environment_variables,
+                user_accounts=user_accounts):
               yield find_spec
 
         elif source_type in (
@@ -70,15 +80,22 @@ class ArtifactDefinitionFiltersGenerator(object):
             artifacts_definitions.TYPE_INDICATOR_PATH):
           for source_path in set(source.paths):
             for find_spec in self._BuildFindSpecsFromFileSourcePath(
-                source_path, source.separator):
+                source_path, source.separator,
+                environment_variables=environment_variables,
+                user_accounts=user_accounts):
               yield find_spec
 
-  def _BuildFindSpecsFromFileSourcePath(self, source_path, path_separator):
+  def _BuildFindSpecsFromFileSourcePath(
+      self, source_path, path_separator, environment_variables=None,
+      user_accounts=None):
     """Builds find specifications from a file source type.
 
     Args:
       source_path (str): file system path defined by the source.
       path_separator (str): file system path segment separator.
+      environment_variables (Optional[list[EnvironmentVariable]]): environment
+          variables.
+      user_accounts (Optional[list[UserAccount]]): user accounts.
 
     Yields:
       dfvfs.FindSpec: file system (dfVFS) find specification.
@@ -87,11 +104,11 @@ class ArtifactDefinitionFiltersGenerator(object):
         source_path, path_separator):
 
       for path in self._path_resolver.ExpandUsersVariable(
-          path_glob, path_separator, self._user_accounts):
+          path_glob, path_separator, user_accounts):
 
         if '%' in path:
           path = self._path_resolver.ExpandEnvironmentVariables(
-              path, path_separator, self._environment_variables)
+              path, path_separator, environment_variables)
 
         if not path.startswith(path_separator):
           continue
@@ -108,15 +125,27 @@ class ArtifactDefinitionFiltersGenerator(object):
 
         yield find_spec
 
-  def GetFindSpecs(self, names):
+  def GetFindSpecs(
+      self, names=None, environment_variables=None, user_accounts=None):
     """Retrieves find specifications for one or more artifact definitions.
 
     Args:
-      names (list[str]): names of the artifact definitions to filter on.
+      names (Optional[list[str]]): names of the artifact definitions to filter
+          on.
+      environment_variables (Optional[list[EnvironmentVariable]]): environment
+          variables.
+      user_accounts (Optional[list[UserAccount]]): user accounts.
 
     Yields:
       dfvfs.FindSpec: file system (dfVFS) find specification.
     """
-    for name in set(names):
-      for find_spec in self._BuildFindSpecsFromArtifactDefinition(name):
+    if self._environment_variables:
+      environment_variables = self._environment_variables
+    if self._user_accounts:
+      user_accounts = self._user_accounts
+
+    for name in set(names or []):
+      for find_spec in self._BuildFindSpecsFromArtifactDefinition(
+          name, environment_variables=environment_variables,
+          user_accounts=user_accounts):
         yield find_spec
