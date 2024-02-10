@@ -19,7 +19,7 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
   # pylint: disable=protected-access
 
   def testBuildFindSpecsFromArtifactDefinition(self):
-    """Tests the GetFindSpecs function."""
+    """Tests the _BuildFindSpecsFromArtifactDefinition function."""
     registry = artifacts_registry.ArtifactDefinitionsRegistry()
     reader = artifacts_reader.YamlArtifactsReader()
 
@@ -28,14 +28,15 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
 
     registry.ReadFromDirectory(reader, test_artifacts_path)
 
+    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
+        registry)
+
     environment_variables = [resources.EnvironmentVariable(
         case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
 
     # Test file artifact definition type.
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, environment_variables, [])
     find_specs = list(test_generator._BuildFindSpecsFromArtifactDefinition(
-        'TestFile2'))
+        'TestFile2', environment_variables=environment_variables))
 
     self.assertEqual(len(find_specs), 1)
 
@@ -48,10 +49,8 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
         find_specs[0]._location_segments, expected_location_segments)
 
     # Test group artifact definition type.
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, environment_variables, [])
     find_specs = list(test_generator._BuildFindSpecsFromArtifactDefinition(
-        'TestGroup1'))
+        'TestGroup1', environment_variables=environment_variables))
 
     self.assertEqual(len(find_specs), 4)
 
@@ -65,14 +64,16 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
 
     registry.ReadFromDirectory(reader, test_artifacts_path)
 
-    # Test expansion of environment variables.
+    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
+        registry)
+
     environment_variables = [resources.EnvironmentVariable(
         case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
 
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, environment_variables, [])
+    # Test expansion of environment variables.
     find_specs = list(test_generator._BuildFindSpecsFromFileSourcePath(
-        '%%environ_systemroot%%\\test_data\\*.evtx', '\\'))
+        '%%environ_systemroot%%\\test_data\\*.evtx', '\\',
+        environment_variables=environment_variables))
 
     self.assertEqual(len(find_specs), 1)
 
@@ -85,8 +86,6 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
         find_specs[0]._location_segments, expected_location_segments)
 
     # Test expansion of globs.
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, [], [])
     find_specs = list(test_generator._BuildFindSpecsFromFileSourcePath(
         '\\test_data\\**', '\\'))
 
@@ -110,10 +109,9 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     test_user2 = resources.UserAccount(
         user_directory='/home/testuser2', username='testuser2')
 
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, [], [test_user1, test_user2])
     find_specs = list(test_generator._BuildFindSpecsFromFileSourcePath(
-        '%%users.homedir%%/.thumbnails/**3', '/'))
+        '%%users.homedir%%/.thumbnails/**3', '/',
+        user_accounts=[test_user1, test_user2]))
 
     # 6 find specs should be created for testuser1 and testuser2.
     self.assertEqual(len(find_specs), 6)
@@ -132,10 +130,9 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
         user_directory='%SystemDrive%\\Users\\testuser2',
         user_directory_path_separator='\\', username='testuser2')
 
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, [], [test_user1, test_user2])
     find_specs = list(test_generator._BuildFindSpecsFromFileSourcePath(
-        '%%users.userprofile%%\\AppData\\**4', '\\'))
+        '%%users.userprofile%%\\AppData\\**4', '\\',
+        user_accounts=[test_user1, test_user2]))
 
     # 8 find specs should be created for testuser1 and testuser2.
     self.assertEqual(len(find_specs), 8)
@@ -146,10 +143,9 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
     self.assertEqual(
         find_specs[7]._location_segments, expected_location_segments)
 
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, [], [test_user1, test_user2])
     find_specs = list(test_generator._BuildFindSpecsFromFileSourcePath(
-        '%%users.localappdata%%\\Microsoft\\**4', '\\'))
+        '%%users.localappdata%%\\Microsoft\\**4', '\\',
+        user_accounts=[test_user1, test_user2]))
 
     # 16 find specs should be created for testuser1 and testuser2.
     self.assertEqual(len(find_specs), 16)
@@ -171,12 +167,14 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
 
     registry.ReadFromDirectory(reader, test_artifacts_path)
 
+    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
+        registry)
+
     environment_variables = [resources.EnvironmentVariable(
         case_sensitive=False, name='%SystemRoot%', value='C:\\Windows')]
 
-    test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(
-        registry, environment_variables, [])
-    find_specs = list(test_generator.GetFindSpecs(['TestFile2']))
+    find_specs = list(test_generator.GetFindSpecs(
+        names=['TestFile2'], environment_variables=environment_variables))
 
     self.assertEqual(len(find_specs), 1)
 
