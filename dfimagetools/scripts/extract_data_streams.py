@@ -142,7 +142,7 @@ def Main():
              '--partitions command line argument.'))
       print('')
 
-      volume_scanner_options.partitions = [filter_generator.partition]
+    volume_scanner_options.partitions = [filter_generator.partition]
 
   entry_lister = file_entry_lister.FileEntryLister(
       mediator=mediator, use_aliases=options.use_aliases)
