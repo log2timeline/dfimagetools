@@ -159,7 +159,13 @@ class FileEntryLister(volume_scanner.VolumeScanner):
             path_specification_string]))
         return
 
-      base_path_segments = self._GetBasePathSegments(base_path_spec.parent)
+      if base_path_spec.type_indicator != dfvfs_definitions.TYPE_INDICATOR_OS:
+        base_path_segments = self._GetBasePathSegments(base_path_spec.parent)
+      else:
+        base_path_segments = file_system.SplitPath(base_path_spec.location)
+        base_path_segments.insert(0, '')
+        base_path_segments.pop()
+
       for result in self._ListFileEntry(
           file_system, file_entry, base_path_segments):
         yield result
@@ -185,7 +191,12 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       else:
         mount_point = base_path_spec.parent
 
-      base_path_segments = self._GetBasePathSegments(base_path_spec.parent)
+      if base_path_spec.type_indicator != dfvfs_definitions.TYPE_INDICATOR_OS:
+        base_path_segments = self._GetBasePathSegments(base_path_spec.parent)
+      else:
+        base_path_segments = file_system.SplitPath(base_path_spec.location)
+        base_path_segments.insert(0, '')
+        base_path_segments.pop()
 
       searcher = file_system_searcher.FileSystemSearcher(
           file_system, mount_point)
