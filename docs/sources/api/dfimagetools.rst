@@ -69,6 +69,14 @@ dfimagetools.file\_entry\_lister module
    :undoc-members:
    :show-inheritance:
 
+dfimagetools.path\_filters module
+---------------------------------
+
+.. automodule:: dfimagetools.path_filters
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 dfimagetools.path\_resolver module
 ----------------------------------
 
