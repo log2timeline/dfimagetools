@@ -88,7 +88,7 @@ def Main():
     print(f'[ERROR] {exception!s}', file=sys.stderr)
     return 1
 
-  except KeyboardInterrupt:
+  except (KeyboardInterrupt, dfvfs_errors.UserAbort):
     print('Aborted by user.', file=sys.stderr)
     return 1
 
