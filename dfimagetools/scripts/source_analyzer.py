@@ -7,6 +7,7 @@ import logging
 import sys
 
 from dfvfs.helpers import command_line as dfvfs_command_line
+from dfvfs.lib import errors as dfvfs_errors
 
 from dfimagetools import source_analyzer
 from dfimagetools.helpers import backend
@@ -70,7 +71,7 @@ def Main():
 
     print('Completed.')
 
-  except KeyboardInterrupt:
+  except (KeyboardInterrupt, dfvfs_errors.UserAbort):
     print('Aborted by user.')
     return 1
 
