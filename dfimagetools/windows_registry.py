@@ -14,95 +14,28 @@ from dfwinreg import registry as dfwinreg_registry
 from dfimagetools import environment_variables
 
 
-class WindowsRegistryFile(dfwinreg_interface.WinRegistryFile):
-  """Windows Registry file.
-
-  This class manages a Windows Registry file-like object.
-  """
-
-  def __init__(self, ascii_codepage='cp1252', key_path_prefix=''):
-    """Initializes a Windows Registry file.
-
-    Args:
-      ascii_codepage (Optional[str]): ASCII string codepage.
-      key_path_prefix (Optional[str]): Windows Registry key path prefix.
-    """
-    super(WindowsRegistryFile, self).__init__()
-    self._file_object = None
-    self._registry_file = None
+class CREGWindowsRegistryFile(dfwinreg_creg.CREGWinRegistryFile):
+  """Windows 9x/Me Registry file (CREG)."""
 
   def Close(self):
     """Closes the Windows Registry file."""
-    self._registry_file.Close()
-    self._registry_file = None
+    self._creg_file.close()
 
     if not isinstance(self._file_object, dfvfs_file_io.FileIO):
       self._file_object.close()
     self._file_object = None
 
-  def GetKeyByPath(self, key_path):
-    """Retrieves the key for a specific path.
 
-    Args:
-      key_path (str): Windows Registry key path.
+class REGFWindowsRegistryFile(dfwinreg_regf.REGFWinRegistryFile):
+  """Windows NT Registry file (REGF)."""
 
-    Returns:
-      WinRegistryKey: Windows Registry key or None if not available.
-    """
-    return self._registry_file.GetKeyByPath(key_path)
+  def Close(self):
+    """Closes the Windows Registry file."""
+    self._regf_file.close()
 
-  def GetRootKey(self):
-    """Retrieves the root key.
-
-    Returns:
-      WinRegistryKey: Windows Registry root key or None if not available.
-    """
-    return self._registry_file.GetRootKey()
-
-  def Open(self, file_object):
-    """Opens the Windows Registry file using a file-like object.
-
-    Args:
-      file_object (file): file-like object.
-
-    Raises:
-      IOError: if the Windows Registry file cannot be opened.
-      OSError: if the Windows Registry file cannot be opened.
-    """
-    try:
-      registry_file = dfwinreg_regf.REGFWinRegistryFile(
-          ascii_codepage=self._ascii_codepage,
-          key_path_prefix=self._key_path_prefix)
-
-      registry_file.Open(file_object)
-
-    except IOError:
-      registry_file = None
-
-    if not registry_file:
-      try:
-        registry_file = dfwinreg_creg.CREGWinRegistryFile(
-            ascii_codepage=self._ascii_codepage,
-            key_path_prefix=self._key_path_prefix)
-
-      except IOError:
-        registry_file = None
-
-    if not registry_file:
-      raise IOError('Unable to open Windows Registry file.')
-
-    self._file_object = file_object
-    self._registry_file = registry_file
-
-  def SetKeyPathPrefix(self, key_path_prefix):
-    """Sets the Window Registry key path prefix.
-
-    Args:
-      key_path_prefix (str): Windows Registry key path prefix.
-    """
-    super(WindowsRegistryFile, self).SetKeyPathPrefix(key_path_prefix)
-    if self._registry_file:
-      self._registry_file.SetKeyPathPrefix(key_path_prefix)
+    if not isinstance(self._file_object, dfvfs_file_io.FileIO):
+      self._file_object.close()
+    self._file_object = None
 
 
 class StorageMediaImageWindowsRegistryFileReader(
@@ -131,7 +64,7 @@ class StorageMediaImageWindowsRegistryFileReader(
       ascii_codepage (Optional[str]): ASCII string codepage.
 
     Returns:
-      WinRegistryFile: Windows Registry file or None if the file cannot
+      dfwinreg.WinRegistryFile: Windows Registry file or None if the file cannot
           be opened.
     """
     path_spec = self._path_resolver.ResolvePath(path)
@@ -142,11 +75,17 @@ class StorageMediaImageWindowsRegistryFileReader(
     if file_object is None:
       return None
 
-    registry_file = WindowsRegistryFile(ascii_codepage=ascii_codepage)
-
     try:
+      signature = file_object.read(4)
+
+      if signature == b'regf':
+        registry_file = REGFWindowsRegistryFile(ascii_codepage=ascii_codepage)
+      else:
+        registry_file = CREGWindowsRegistryFile(ascii_codepage=ascii_codepage)
+
+      # Note that registry_file takes over management of file_object.
       registry_file.Open(file_object)
-      # Note that WindowsRegistryFile takes over management of file_object.
+
     except IOError:
       file_object.close()
       return None
