@@ -7,6 +7,8 @@ import logging
 import os
 import sys
 
+import artifacts
+
 from artifacts import reader as artifacts_reader
 from artifacts import registry as artifacts_registry
 
@@ -84,7 +86,16 @@ def Main():
     return 1
 
   if options.artifact_filters:
-    if (not options.artifact_definitions and
+    artifact_definitions = options.artifact_definitions
+    if not artifact_definitions:
+      artifact_definitions = os.path.join(
+          os.path.dirname(artifacts.__file__), 'data')
+      if not os.path.exists(artifact_definitions):
+        artifact_definitions = os.path.join('/', 'usr', 'share', 'artifacts')
+      if not os.path.exists(artifact_definitions):
+        artifact_definitions = None
+
+    if (not artifact_definitions and
         not options.custom_artifact_definitions):
       print('[ERROR] artifact filters were specified but no paths to '
             'artifact definitions were provided.')
@@ -101,11 +112,11 @@ def Main():
     registry = artifacts_registry.ArtifactDefinitionsRegistry()
     reader = artifacts_reader.YamlArtifactsReader()
 
-    if options.artifact_definitions:
-      if os.path.isdir(options.artifact_definitions):
-        registry.ReadFromDirectory(reader, options.artifact_definitions)
-      elif os.path.isfile(options.artifact_definitions):
-        registry.ReadFromFile(reader, options.artifact_definitions)
+    if artifact_definitions:
+      if os.path.isdir(artifact_definitions):
+        registry.ReadFromDirectory(reader, artifact_definitions)
+      elif os.path.isfile(artifact_definitions):
+        registry.ReadFromFile(reader, artifact_definitions)
 
     if options.custom_artifact_definitions:
       if os.path.isdir(options.custom_artifact_definitions):
