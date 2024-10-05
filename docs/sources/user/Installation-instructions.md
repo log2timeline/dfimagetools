@@ -27,7 +27,7 @@ To deactivate the virtualenv run:
 deactivate
 ```
 
-## Ubuntu 18.04 and 20.04 LTS
+## Ubuntu 22.04 LTS
 
 To install dfimagetools from the [GIFT Personal Package Archive (PPA)](https://launchpad.net/~gift):
 
