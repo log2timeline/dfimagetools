@@ -110,9 +110,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       yield file_entry, path_segments
 
     for sub_file_entry in file_entry.sub_file_entries:
-      for result in self._ListFileEntry(
-          file_system, sub_file_entry, path_segments):
-        yield result
+      yield from self._ListFileEntry(file_system, sub_file_entry, path_segments)
 
   def GetWindowsDirectory(self, base_path_spec):
     """Retrieves the Windows directory from the base path specification.
@@ -166,9 +164,8 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         base_path_segments.insert(0, '')
         base_path_segments.pop()
 
-      for result in self._ListFileEntry(
-          file_system, file_entry, base_path_segments):
-        yield result
+      yield from self._ListFileEntry(
+          file_system, file_entry, base_path_segments)
 
   def ListFileEntriesWithFindSpecs(self, base_path_specs, find_specs):
     """Lists file entries in the base path specifications.

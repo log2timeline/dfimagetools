@@ -69,21 +69,19 @@ class ArtifactDefinitionFiltersGenerator(object):
 
         if source_type == artifacts_definitions.TYPE_INDICATOR_ARTIFACT_GROUP:
           for source_name in set(source.names):
-            for find_spec in self._BuildFindSpecsFromArtifactDefinition(
+            yield from self._BuildFindSpecsFromArtifactDefinition(
                 source_name, environment_variables=environment_variables,
-                user_accounts=user_accounts):
-              yield find_spec
+                user_accounts=user_accounts)
 
         elif source_type in (
             artifacts_definitions.TYPE_INDICATOR_DIRECTORY,
             artifacts_definitions.TYPE_INDICATOR_FILE,
             artifacts_definitions.TYPE_INDICATOR_PATH):
           for source_path in set(source.paths):
-            for find_spec in self._BuildFindSpecsFromFileSourcePath(
+            yield from self._BuildFindSpecsFromFileSourcePath(
                 source_path, source.separator,
                 environment_variables=environment_variables,
-                user_accounts=user_accounts):
-              yield find_spec
+                user_accounts=user_accounts)
 
   def _BuildFindSpecsFromFileSourcePath(
       self, source_path, path_separator, environment_variables=None,
@@ -145,7 +143,6 @@ class ArtifactDefinitionFiltersGenerator(object):
       user_accounts = self._user_accounts
 
     for name in set(names or []):
-      for find_spec in self._BuildFindSpecsFromArtifactDefinition(
+      yield from self._BuildFindSpecsFromArtifactDefinition(
           name, environment_variables=environment_variables,
-          user_accounts=user_accounts):
-        yield find_spec
+          user_accounts=user_accounts)
