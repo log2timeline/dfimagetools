@@ -114,7 +114,7 @@ class BodyfileGenerator(object):
     Returns:
       str: bodyfile timestamp representation of the date time value.
     """
-    if not date_time:
+    if not date_time or date_time.timestamp == 0:
       return ''
 
     posix_timestamp, fraction_of_second = (
@@ -202,6 +202,9 @@ class BodyfileGenerator(object):
         segment.translate(self._bodyfile_escape_characters)
         for segment in path_segments]
     file_entry_name_value = '/'.join(path_segments) or '/'
+
+    if file_entry.IsRoot() and not file_entry_name_value.endswith('/'):
+      file_entry_name_value = f'{file_entry_name_value:s}/'
 
     if not file_entry.link:
       name_value = file_entry_name_value
