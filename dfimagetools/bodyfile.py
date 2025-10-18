@@ -189,8 +189,6 @@ class BodyfileGenerator(object):
     if stat_attribute.group_identifier is not None:
       group_identifier = str(stat_attribute.group_identifier)
 
-    size = str(file_entry.size)
-
     access_time = self._GetTimestamp(file_entry.access_time)
     creation_time = self._GetTimestamp(file_entry.creation_time)
     change_time = self._GetTimestamp(file_entry.change_time)
@@ -219,6 +217,8 @@ class BodyfileGenerator(object):
           for segment in path_segments])
       name_value = ' -> '.join([file_entry_name_value, file_entry_link])
 
+    size = str(file_entry.size)
+
     yield '|'.join([
         md5_string, name_value, inode_string, mode_string, owner_identifier,
         group_identifier, size, access_time, modification_time, change_time,
@@ -231,9 +231,11 @@ class BodyfileGenerator(object):
         data_stream_name_value = ':'.join([
             file_entry_name_value, data_stream_name])
 
+        data_stream_size = str(data_stream.size)
+
         yield '|'.join([
             md5_string, data_stream_name_value, inode_string, mode_string,
-            owner_identifier, group_identifier, size, access_time,
+            owner_identifier, group_identifier, data_stream_size, access_time,
             modification_time, change_time, creation_time])
 
     for attribute in file_entry.attributes:
