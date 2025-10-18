@@ -140,10 +140,11 @@ class BodyfileGenerator(object):
       file_attribute_flags = fsfat_file_entry.file_attribute_flags
 
     elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+      fsntfs_file_entry = file_entry.GetNTFSFileEntry()
+      file_attribute_flags = fsntfs_file_entry.file_attribute_flags
+
       mft_attribute_index = getattr(file_entry.path_spec, 'mft_attribute', None)
       if mft_attribute_index is not None:
-        fsntfs_file_entry = file_entry.GetNTFSFileEntry()
-        file_attribute_flags = fsntfs_file_entry.file_attribute_flags
         parent_file_reference = (
             fsntfs_file_entry.get_parent_file_reference_by_attribute_index(
                 mft_attribute_index))
