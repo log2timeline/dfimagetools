@@ -46,7 +46,7 @@ class BodyfileGenerator(object):
   def __init__(self):
     """Initializes a bodyfile generator."""
     super(BodyfileGenerator, self).__init__()
-    self._bodyfile_escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+    self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
     self._root_file_entry_identifier = None
 
   def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
@@ -199,7 +199,7 @@ class BodyfileGenerator(object):
     md5_string = '0'
 
     path_segments = [
-        segment.translate(self._bodyfile_escape_characters)
+        segment.translate(self._escape_characters)
         for segment in path_segments]
     file_entry_name_value = '/'.join(path_segments) or '/'
 
@@ -209,16 +209,21 @@ class BodyfileGenerator(object):
     if not file_entry.link:
       name_value = file_entry_name_value
     else:
-      if file_entry.type_indicator in (
-          dfvfs_definitions.TYPE_INDICATOR_FAT,
-          dfvfs_definitions.TYPE_INDICATOR_NTFS):
-        path_segments = file_entry.link.split('\\')
-      else:
-        path_segments = file_entry.link.split('/')
+      # TODO: escape link target
+      # if file_entry.type_indicator in (
+      #     dfvfs_definitions.TYPE_INDICATOR_FAT,
+      #     dfvfs_definitions.TYPE_INDICATOR_NTFS):
+      #   path_segments = file_entry.link.split('\\')
+      #   file_entry_link = '\\'.join([path_segments[0]] + [
+      #       segment.translate(self._escape_characters)
+      #       for segment in path_segments[1:]])
+      # else:
+      #   path_segments = file_entry.link.split('/')
+      #   file_entry_link = '/'.join([
+      #       segment.translate(self._escape_characters)
+      #       for segment in path_segments])
+      file_entry_link = file_entry.link
 
-      file_entry_link = '/'.join([
-          segment.translate(self._bodyfile_escape_characters)
-          for segment in path_segments])
       name_value = ' -> '.join([file_entry_name_value, file_entry_link])
 
     size = str(file_entry.size)
@@ -231,7 +236,7 @@ class BodyfileGenerator(object):
     for data_stream in file_entry.data_streams:
       if data_stream.name:
         data_stream_name = data_stream.name.translate(
-            self._bodyfile_escape_characters)
+            self._escape_characters)
         data_stream_name_value = ':'.join([
             file_entry_name_value, data_stream_name])
 
