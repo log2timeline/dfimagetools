@@ -46,7 +46,7 @@ class BodyfileGenerator(object):
   def __init__(self):
     """Initializes a bodyfile generator."""
     super(BodyfileGenerator, self).__init__()
-    self._bodyfile_escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+    self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
     self._root_file_entry_identifier = None
 
   def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
@@ -114,7 +114,7 @@ class BodyfileGenerator(object):
     Returns:
       str: bodyfile timestamp representation of the date time value.
     """
-    if not date_time:
+    if not date_time or date_time.timestamp == 0:
       return ''
 
     posix_timestamp, fraction_of_second = (
@@ -140,10 +140,11 @@ class BodyfileGenerator(object):
       file_attribute_flags = fsfat_file_entry.file_attribute_flags
 
     elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+      fsntfs_file_entry = file_entry.GetNTFSFileEntry()
+      file_attribute_flags = fsntfs_file_entry.file_attribute_flags
+
       mft_attribute_index = getattr(file_entry.path_spec, 'mft_attribute', None)
       if mft_attribute_index is not None:
-        fsntfs_file_entry = file_entry.GetNTFSFileEntry()
-        file_attribute_flags = fsntfs_file_entry.file_attribute_flags
         parent_file_reference = (
             fsntfs_file_entry.get_parent_file_reference_by_attribute_index(
                 mft_attribute_index))
@@ -189,8 +190,6 @@ class BodyfileGenerator(object):
     if stat_attribute.group_identifier is not None:
       group_identifier = str(stat_attribute.group_identifier)
 
-    size = str(file_entry.size)
-
     access_time = self._GetTimestamp(file_entry.access_time)
     creation_time = self._GetTimestamp(file_entry.creation_time)
     change_time = self._GetTimestamp(file_entry.change_time)
@@ -200,24 +199,34 @@ class BodyfileGenerator(object):
     md5_string = '0'
 
     path_segments = [
-        segment.translate(self._bodyfile_escape_characters)
+        segment.translate(self._escape_characters)
         for segment in path_segments]
     file_entry_name_value = '/'.join(path_segments) or '/'
+
+    if file_entry.IsRoot() and not file_entry_name_value.endswith('/'):
+      file_entry_name_value = f'{file_entry_name_value:s}/'
 
     if not file_entry.link:
       name_value = file_entry_name_value
     else:
-      if file_entry.type_indicator in (
-          dfvfs_definitions.TYPE_INDICATOR_FAT,
-          dfvfs_definitions.TYPE_INDICATOR_NTFS):
-        path_segments = file_entry.link.split('\\')
-      else:
-        path_segments = file_entry.link.split('/')
+      # TODO: escape link target
+      # if file_entry.type_indicator in (
+      #     dfvfs_definitions.TYPE_INDICATOR_FAT,
+      #     dfvfs_definitions.TYPE_INDICATOR_NTFS):
+      #   path_segments = file_entry.link.split('\\')
+      #   file_entry_link = '\\'.join([path_segments[0]] + [
+      #       segment.translate(self._escape_characters)
+      #       for segment in path_segments[1:]])
+      # else:
+      #   path_segments = file_entry.link.split('/')
+      #   file_entry_link = '/'.join([
+      #       segment.translate(self._escape_characters)
+      #       for segment in path_segments])
+      file_entry_link = file_entry.link
 
-      file_entry_link = '/'.join([
-          segment.translate(self._bodyfile_escape_characters)
-          for segment in path_segments])
       name_value = ' -> '.join([file_entry_name_value, file_entry_link])
+
+    size = str(file_entry.size)
 
     yield '|'.join([
         md5_string, name_value, inode_string, mode_string, owner_identifier,
@@ -227,13 +236,15 @@ class BodyfileGenerator(object):
     for data_stream in file_entry.data_streams:
       if data_stream.name:
         data_stream_name = data_stream.name.translate(
-            self._bodyfile_escape_characters)
+            self._escape_characters)
         data_stream_name_value = ':'.join([
             file_entry_name_value, data_stream_name])
 
+        data_stream_size = str(data_stream.size)
+
         yield '|'.join([
             md5_string, data_stream_name_value, inode_string, mode_string,
-            owner_identifier, group_identifier, size, access_time,
+            owner_identifier, group_identifier, data_stream_size, access_time,
             modification_time, change_time, creation_time])
 
     for attribute in file_entry.attributes:

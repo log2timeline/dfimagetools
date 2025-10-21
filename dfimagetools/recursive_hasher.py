@@ -11,6 +11,13 @@ from dfimagetools import definitions
 class RecursiveHasher(object):
   """Recursively calculates message digest hashes of data streams."""
 
+  _ESCAPE_CHARACTERS = {
+      '/': '\\/',
+      ':': '\\:',
+      '\\': '\\\\'}
+
+  _ESCAPE_CHARACTERS.update(definitions.NON_PRINTABLE_CHARACTERS)
+
   # Class constant that defines the default read buffer size.
   _READ_BUFFER_SIZE = 16 * 1024 * 1024
 
@@ -19,6 +26,11 @@ class RecursiveHasher(object):
   #    str: data stream name
   _PATHS_TO_IGNORE = frozenset([
       (('$BadClus', ), '$Bad')])
+
+  def __init__(self):
+    """Initializes a recursive hahser."""
+    super(RecursiveHasher, self).__init__()
+    self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
 
   def _CalculateHashDataStream(self, file_entry, data_stream_name):
     """Calculates a message digest hash of the data of the file entry.
@@ -40,7 +52,7 @@ class RecursiveHasher(object):
       file_object = file_entry.GetFileObject(data_stream_name=data_stream_name)
     except IOError as exception:
       path_specification_string = file_entry.path_spec.comparable.translate(
-          definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE)
+          self._escape_characters)
       logging.warning((
           'Unable to open path specification:\n{0:s}'
           'with error: {1!s}').format(path_specification_string, exception))
@@ -56,7 +68,7 @@ class RecursiveHasher(object):
         data = file_object.read(self._READ_BUFFER_SIZE)
     except IOError as exception:
       path_specification_string = file_entry.path_spec.comparable.translate(
-          definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE)
+          self._escape_characters)
       logging.warning((
           'Unable to read from path specification:\n{0:s}'
           'with error: {1!s}').format(path_specification_string, exception))
@@ -78,13 +90,11 @@ class RecursiveHasher(object):
     display_path = ''
 
     path_segments = [
-        segment.translate(definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE)
-        for segment in path_segments]
+        segment.translate(self._escape_characters) for segment in path_segments]
     display_path = ''.join([display_path, '/'.join(path_segments)])
 
     if data_stream_name:
-      data_stream_name = data_stream_name.translate(
-          definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE)
+      data_stream_name = data_stream_name.translate(self._escape_characters)
       display_path = ':'.join([display_path, data_stream_name])
 
     return display_path or '/'

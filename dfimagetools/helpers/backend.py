@@ -37,7 +37,7 @@ def SetDFVFSBackEnd(back_end):
   elif back_end == 'TSK':
     dfvfs_definitions.PREFERRED_APM_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_TSK)
-    dfvfs_definitions.PREFERRED_APM_BACK_END = (
+    dfvfs_definitions.PREFERRED_EXT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_TSK)
     dfvfs_definitions.PREFERRED_FAT_BACK_END = (
         dfvfs_definitions.TYPE_INDICATOR_TSK)
