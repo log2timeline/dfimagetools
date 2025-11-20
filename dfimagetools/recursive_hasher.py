@@ -112,8 +112,9 @@ class RecursiveHasher(object):
     lookup_path = tuple(path_segments[1:])
 
     for data_stream in file_entry.data_streams:
-      hash_value = None
-      if (lookup_path, data_stream.name) not in self._PATHS_TO_IGNORE:
+      if (lookup_path, data_stream.name) in self._PATHS_TO_IGNORE:
+        hash_value = 'N/A (skipped)'
+      else:
         hash_value = self._CalculateHashDataStream(file_entry, data_stream.name)
 
       display_path = self._GetDisplayPath(path_segments, data_stream.name)
