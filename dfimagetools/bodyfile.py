@@ -177,7 +177,7 @@ class BodyfileGenerator(object):
         file_type = '-'
 
       if file_attribute_flags is None:
-        mode_string = ''.join([file_type] + (9 * ['-']))
+        mode_string = ''.join([file_type] + (3 * ['rwx']))
       else:
         mode_string = self._GetFileAttributeFlagsString(
             file_type, file_attribute_flags)
@@ -199,7 +199,7 @@ class BodyfileGenerator(object):
     md5_string = '0'
 
     path_segments = [
-        segment.translate(self._escape_characters)
+        (segment or '').translate(self._escape_characters)
         for segment in path_segments]
     file_entry_name_value = '/'.join(path_segments) or '/'
 
@@ -209,22 +209,22 @@ class BodyfileGenerator(object):
     if not file_entry.link:
       name_value = file_entry_name_value
     else:
-      # TODO: escape link target
-      # if file_entry.type_indicator in (
-      #     dfvfs_definitions.TYPE_INDICATOR_FAT,
-      #     dfvfs_definitions.TYPE_INDICATOR_NTFS):
-      #   path_segments = file_entry.link.split('\\')
-      #   file_entry_link = '\\'.join([path_segments[0]] + [
-      #       segment.translate(self._escape_characters)
-      #       for segment in path_segments[1:]])
-      # else:
-      #   path_segments = file_entry.link.split('/')
-      #   file_entry_link = '/'.join([
-      #       segment.translate(self._escape_characters)
-      #       for segment in path_segments])
-      file_entry_link = file_entry.link
+      if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+        path_segments = file_entry.link.split('\\')
 
-      name_value = ' -> '.join([file_entry_name_value, file_entry_link])
+        link_target = '/'.join([path_segments[0]] + [
+            segment.translate(self._escape_characters)
+            for segment in path_segments[1:]
+            if segment and segment != '.'])
+      else:
+        path_segments = file_entry.link.split('/')
+
+        link_target = '/'.join([
+            segment.translate(self._escape_characters)
+            for index, segment in enumerate(path_segments)
+            if (index == 0 or segment) and segment != '.'])
+
+      name_value = ' -> '.join([file_entry_name_value, link_target])
 
     size = str(file_entry.size)
 
