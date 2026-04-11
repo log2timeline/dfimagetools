@@ -128,10 +128,14 @@ class SourceAnalyzer(object):
     type_indicator = scan_node.path_spec.type_indicator
     if type_indicator == dfvfs_definitions.TYPE_INDICATOR_TSK:
       file_system = resolver.Resolver.OpenFileSystem(scan_node.path_spec)
-      if file_system.IsHFS():
-        flags.append('[HFS/HFS+/HFSX]')
+      if file_system.IsExt():
+        flags.append(' [ext2/ext3/ext4]')
+      elif file_system.IsFat():
+        flags.append(' [FAT-12/FAT-16/FAT-32]')
+      elif file_system.IsHFS():
+        flags.append(' [HFS+/HFSX]')
       elif file_system.IsNTFS():
-        flags.append('[NTFS]')
+        flags.append(' [NTFS]')
 
     flags = ' '.join(flags)
     print(f'{indentation:s}{type_indicator:s}: {values:s}{flags:s}')

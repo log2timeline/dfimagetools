@@ -21,9 +21,9 @@ An extended bodyfile version 3 consists of:
 
 ## Comment lines
 
-The [SleuthKit](https://wiki.sleuthkit.org/index.php?title=Body_file) defines
-a line that start with `#` as comment. The extended bodyfile version 3 format
-uses comment lines to identify the format and store metadata.
+The [SleuthKit](https://wiki.sleuthkit.org/Body-file/) defines a line that
+start with `#` as comment. The extended bodyfile version 3 format uses comment
+lines to identify the format and store metadata.
 
 Therefore the first line of an extended bodyfile version 3 is used to uniquely
 identify the format and must contain:
@@ -35,8 +35,7 @@ identify the format and must contain:
 ## Values lines
 
 A values line consists of with 11 pipe-character ('|') delimited values. The
-[SleuthKit](https://wiki.sleuthkit.org/index.php?title=Body_file) defines these
-values as:
+[SleuthKit](https://wiki.sleuthkit.org/Body-file/) defines these values as:
 
 ```
 MD5|name|inode|mode_as_string|UID|GID|size|atime|mtime|ctime|crtime
@@ -110,7 +109,7 @@ For the dfVFS FAT back-end the offset, relative to the start of the volume, to
 the directory entry is used.
 
 For the dfVFS NTFS back-end the convention `${MFT_ENTRY}-${SEQUENCE_NUMBER}` is
-used instead of the non-portable [metadata address](https://wiki.sleuthkit.org/index.php?title=Metadata_Address)
+used instead of the non-portable [metadata address](https://wiki.sleuthkit.org/Metadata-Address/)
 used by the SleuthKit tools.
 
 ### Mode_as_string value
@@ -164,4 +163,4 @@ before conversion to POSIX time, was 0.
 ## Also see
 
 * [Forensics Wiki: Body file](https://forensics.wiki/body_file)
-* [SleuthKit: Body file](https://wiki.sleuthkit.org/index.php?title=Body_file)
+* [SleuthKit: Body file](https://wiki.sleuthkit.org/Body-file/)
