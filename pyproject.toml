@@ -20,7 +20,6 @@ requires-python = ">=3.10"
 dependencies = [
     "PyYAML >= 3.10",
     "artifacts >= 20220219",
-    "cffi >= 1.9.1",
     "dfdatetime >= 20251018",
     "dfvfs >= 20251019",
     "dfwinreg >= 20240229",
