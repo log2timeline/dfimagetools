@@ -1,2 +1,2 @@
 usr/lib/python3*/dist-packages/dfimagetools/*.py
-usr/lib/python3*/dist-packages/dfimagetools*.egg-info/*
+usr/lib/python3*/dist-packages/dfimagetools*.dist-info/*
