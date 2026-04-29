@@ -54,8 +54,8 @@ class RecursiveHasher(object):
       path_specification_string = file_entry.path_spec.comparable.translate(
           self._escape_characters)
       logging.warning((
-          'Unable to open path specification:\n{0:s}'
-          'with error: {1!s}').format(path_specification_string, exception))
+          f'Unable to open path specification:\n{path_specification_string:s}'
+          f'with error: {exception!s}'))
       return None
 
     if not file_object:
@@ -70,8 +70,8 @@ class RecursiveHasher(object):
       path_specification_string = file_entry.path_spec.comparable.translate(
           self._escape_characters)
       logging.warning((
-          'Unable to read from path specification:\n{0:s}'
-          'with error: {1!s}').format(path_specification_string, exception))
+          f'Unable to read from path specification:\n'
+          f'{path_specification_string:s} with error: {exception!s}'))
       return None
 
     return hash_context.hexdigest()

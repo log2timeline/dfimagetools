@@ -71,7 +71,9 @@ def Main():
       for file_entry, path_segments in file_entries_generator:
         for display_path, hash_value in hasher.CalculateHashesFileEntry(
             file_entry, path_segments):
-          print('{0:s}\t{1:s}'.format(hash_value or 'N/A', display_path))
+          if not hash_value:
+            hash_value = 'N/A'
+          print(f'{hash_value:s}\t{display_path:s}')
 
   except dfvfs_errors.ScannerError as exception:
     print(f'[ERROR] {exception!s}', file=sys.stderr)
