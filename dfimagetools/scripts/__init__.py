@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Helper functions for CLI tools."""
 
 from dfvfs.lib import definitions as dfvfs_definitions

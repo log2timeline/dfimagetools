@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Helper to recursively calculate a message digest hash of data streams."""
 
 import hashlib

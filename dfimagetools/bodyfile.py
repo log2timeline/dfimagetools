@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Helper for generating bodyfile entries."""
 
 from dfdatetime import definitions as dfdatetime_definitions
