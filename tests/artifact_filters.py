@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Tests for the helper for filtering based on artifact definitions."""
 
 import unittest

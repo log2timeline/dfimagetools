@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Helpers to collect information from the Windows Registry."""
 
 from dfvfs.file_io import file_io as dfvfs_file_io

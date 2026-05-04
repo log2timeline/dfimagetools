@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Console script to recursive hash data streams."""
 
 import argparse

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Helper to list file entries."""
 
 import logging

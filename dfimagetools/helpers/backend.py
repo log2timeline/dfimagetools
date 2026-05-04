@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """dfVFS backend helper functions."""
 
 from dfvfs.lib import definitions as dfvfs_definitions

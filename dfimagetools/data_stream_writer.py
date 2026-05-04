@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Helper to write data streams."""
 
 import os

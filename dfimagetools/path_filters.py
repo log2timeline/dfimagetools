@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Helper for filtering based on a path."""
 
 import re
