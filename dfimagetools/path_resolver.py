@@ -3,7 +3,7 @@
 import logging
 
 
-class PathResolver(object):
+class PathResolver:
   """Path resolver."""
 
   _GLOBSTAR_RECURSION_LIMIT = 10

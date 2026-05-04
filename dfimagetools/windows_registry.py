@@ -49,7 +49,7 @@ class StorageMediaImageWindowsRegistryFileReader(
           directory.
       path_resolver (dfvfs.WindowsPathResolver): Windows path resolver.
     """
-    super(StorageMediaImageWindowsRegistryFileReader, self).__init__()
+    super().__init__()
     self._file_system = file_system
     self._path_resolver = path_resolver
 
@@ -92,7 +92,7 @@ class StorageMediaImageWindowsRegistryFileReader(
     return registry_file
 
 
-class WindowsRegistryCollector(object):
+class WindowsRegistryCollector:
   """Windows Registry collector."""
 
   def __init__(self, path_spec, windows_directory):
@@ -120,7 +120,7 @@ class WindowsRegistryCollector(object):
     registry_file_reader = StorageMediaImageWindowsRegistryFileReader(
         file_system, path_resolver)
 
-    super(WindowsRegistryCollector, self).__init__()
+    super().__init__()
     self._registry = dfwinreg_registry.WinRegistry(
         registry_file_reader=registry_file_reader)
 

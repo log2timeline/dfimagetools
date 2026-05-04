@@ -10,7 +10,7 @@ from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
 
 
-class SourceAnalyzer(object):
+class SourceAnalyzer:
   """Analyzer to recursively check for volumes and file systems."""
 
   # Class constant that defines the default read buffer size.
@@ -24,7 +24,7 @@ class SourceAnalyzer(object):
           recurse as far as possible.
       mediator (Optional[VolumeScannerMediator]): a volume scanner mediator.
     """
-    super(SourceAnalyzer, self).__init__()
+    super().__init__()
     self._auto_recurse = auto_recurse
     self._encode_errors = 'strict'
     self._mediator = mediator
