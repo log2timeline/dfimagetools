@@ -1,7 +1,7 @@
 """Various resource classes."""
 
 
-class EnvironmentVariable(object):
+class EnvironmentVariable:
   """Environment variable.
 
   Attributes:
@@ -21,13 +21,13 @@ class EnvironmentVariable(object):
       name (Optional[str]): environment variable name.
       value (Optional[str]): environment variable value.
     """
-    super(EnvironmentVariable, self).__init__()
+    super().__init__()
     self.case_sensitive = case_sensitive
     self.name = name
     self.value = value
 
 
-class UserAccount(object):
+class UserAccount:
   """User account.
 
   Attributes:
@@ -56,7 +56,7 @@ class UserAccount(object):
           the user directory.
       username (Optional[str]): name uniquely identifying the user.
     """
-    super(UserAccount, self).__init__()
+    super().__init__()
     self.full_name = full_name
     self.group_identifier = group_identifier
     self.identifier = identifier

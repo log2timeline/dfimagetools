@@ -5,7 +5,7 @@ import re
 from dfvfs.helpers import file_system_searcher as dfvfs_file_system_searcher
 
 
-class PathFiltersGenerator(object):
+class PathFiltersGenerator:
   """Generator of filters based on a path."""
 
   _PARTITION_REGEX = re.compile(r'^p[1-9][0-9]*$')
@@ -22,7 +22,7 @@ class PathFiltersGenerator(object):
     # TODO: add option to not look for partition and volume in path
     # TODO: determine file system path segment separator.
 
-    super(PathFiltersGenerator, self).__init__()
+    super().__init__()
     self._partition = None
     self._path_segments = path.split('/')
 

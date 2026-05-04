@@ -9,7 +9,7 @@ from dfvfs.helpers import file_system_searcher as dfvfs_file_system_searcher
 from dfimagetools import path_resolver
 
 
-class ArtifactDefinitionFiltersGenerator(object):
+class ArtifactDefinitionFiltersGenerator:
   """Generator of filters based on artifact definitions."""
 
   # TODO: passing environment_variables and user_accounts via __init__ is
@@ -26,7 +26,7 @@ class ArtifactDefinitionFiltersGenerator(object):
           variables.
       user_accounts (Optional[list[UserAccount]]]): user accounts.
     """
-    super(ArtifactDefinitionFiltersGenerator, self).__init__()
+    super().__init__()
     self._artifacts_registry = artifacts_registry
     self._environment_variables = environment_variables
     self._path_resolver = path_resolver.PathResolver()

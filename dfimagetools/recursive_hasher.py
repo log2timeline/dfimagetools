@@ -7,7 +7,7 @@ import logging
 from dfimagetools import definitions
 
 
-class RecursiveHasher(object):
+class RecursiveHasher:
   """Recursively calculates message digest hashes of data streams."""
 
   _ESCAPE_CHARACTERS = {
@@ -28,7 +28,7 @@ class RecursiveHasher(object):
 
   def __init__(self):
     """Initializes a recursive hahser."""
-    super(RecursiveHasher, self).__init__()
+    super().__init__()
     self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
 
   def _CalculateHashDataStream(self, file_entry, data_stream_name):

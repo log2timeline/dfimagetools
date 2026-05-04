@@ -3,7 +3,7 @@
 from dfimagetools import resources
 
 
-class WindowsEnvironmentVariablesCollector(object):
+class WindowsEnvironmentVariablesCollector:
   """Windows environment variables collector."""
 
   _ENVIRONMENT_KEY_PATH = (

@@ -31,7 +31,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
       use_aliases (Optional[bool]): True if partition and/or volume aliases
           should be used.
     """
-    super(FileEntryLister, self).__init__(mediator=mediator)
+    super().__init__(mediator=mediator)
     self._list_only_files = False
     self._use_aliases = use_aliases
 

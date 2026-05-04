@@ -5,7 +5,7 @@ import os
 from dfimagetools import definitions
 
 
-class DataStreamWriter(object):
+class DataStreamWriter:
   """Data stream writer."""
 
   # Class constant that defines the default read buffer size.
@@ -18,7 +18,7 @@ class DataStreamWriter(object):
 
   def __init__(self):
     """Initializes a data stream writer."""
-    super(DataStreamWriter, self).__init__()
+    super().__init__()
     self._invalid_path_characters = str.maketrans({
         value: '_' for value in self._INVALID_PATH_CHARACTERS})
 

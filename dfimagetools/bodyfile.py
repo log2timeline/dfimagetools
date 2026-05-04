@@ -8,7 +8,7 @@ from dfvfs.vfs import ntfs_attribute as dfvfs_ntfs_attribute
 from dfimagetools import definitions
 
 
-class BodyfileGenerator(object):
+class BodyfileGenerator:
   """Bodyfile generator."""
 
   _ESCAPE_CHARACTERS = {
@@ -44,7 +44,7 @@ class BodyfileGenerator(object):
 
   def __init__(self):
     """Initializes a bodyfile generator."""
-    super(BodyfileGenerator, self).__init__()
+    super().__init__()
     self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
     self._root_file_entry_identifier = None
 
