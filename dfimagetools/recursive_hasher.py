@@ -49,7 +49,7 @@ class RecursiveHasher:
 
     try:
       file_object = file_entry.GetFileObject(data_stream_name=data_stream_name)
-    except IOError as exception:
+    except OSError as exception:
       path_specification_string = file_entry.path_spec.comparable.translate(
           self._escape_characters)
       logging.warning((
@@ -65,7 +65,7 @@ class RecursiveHasher:
       while data:
         hash_context.update(data)
         data = file_object.read(self._READ_BUFFER_SIZE)
-    except IOError as exception:
+    except OSError as exception:
       path_specification_string = file_entry.path_spec.comparable.translate(
           self._escape_characters)
       logging.warning((
