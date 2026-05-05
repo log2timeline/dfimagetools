@@ -85,7 +85,7 @@ class StorageMediaImageWindowsRegistryFileReader(
       # Note that registry_file takes over management of file_object.
       registry_file.Open(file_object)
 
-    except IOError:
+    except OSError:
       file_object.close()
       return None
 

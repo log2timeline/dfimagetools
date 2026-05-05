@@ -51,7 +51,7 @@ class PathResolver:
       lookup_table[attribute_name] = attribute_value
 
     if 'ALLUSERSAPPDATA' not in lookup_table:
-      program_data = lookup_table.get('PROGRAMDATA', None)
+      program_data = lookup_table.get('PROGRAMDATA')
       if program_data:
         lookup_table['ALLUSERSAPPDATA'] = program_data
 
