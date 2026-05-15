@@ -9,256 +9,304 @@ from dfimagetools import definitions
 
 
 class BodyfileGenerator:
-  """Bodyfile generator."""
+    """Bodyfile generator."""
 
-  _ESCAPE_CHARACTERS = {
-      '/': '\\/',
-      ':': '\\:',
-      '\\': '\\\\',
-      '|': '\\|'}
+    _ESCAPE_CHARACTERS = {"/": "\\/", ":": "\\:", "\\": "\\\\", "|": "\\|"}
 
-  _ESCAPE_CHARACTERS.update(definitions.NON_PRINTABLE_CHARACTERS)
+    _ESCAPE_CHARACTERS.update(definitions.NON_PRINTABLE_CHARACTERS)
 
-  _FILE_TYPES = {
-      0x1000: 'p',
-      0x2000: 'c',
-      0x4000: 'd',
-      0x6000: 'b',
-      0xa000: 'l',
-      0xc000: 's'}
+    _FILE_TYPES = {
+        0x1000: "p",
+        0x2000: "c",
+        0x4000: "d",
+        0x6000: "b",
+        0xA000: "l",
+        0xC000: "s",
+    }
 
-  _FILE_ATTRIBUTE_READONLY = 1
-  _FILE_ATTRIBUTE_HIDDEN = 2
-  _FILE_ATTRIBUTE_SYSTEM = 4
+    _FILE_ATTRIBUTE_READONLY = 1
+    _FILE_ATTRIBUTE_HIDDEN = 2
+    _FILE_ATTRIBUTE_SYSTEM = 4
 
-  _TIMESTAMP_FORMAT_STRINGS = {
-      dfdatetime_definitions.PRECISION_1_NANOSECOND: '{0:d}.{1:09d}',
-      dfdatetime_definitions.PRECISION_10_NANOSECONDS: '{0:d}.{1:08d}',
-      dfdatetime_definitions.PRECISION_100_NANOSECONDS: '{0:d}.{1:07d}',
-      dfdatetime_definitions.PRECISION_1_MICROSECOND: '{0:d}.{1:06d}',
-      dfdatetime_definitions.PRECISION_10_MICROSECONDS: '{0:d}.{1:05d}',
-      dfdatetime_definitions.PRECISION_100_MICROSECONDS: '{0:d}.{1:04d}',
-      dfdatetime_definitions.PRECISION_1_MILLISECOND: '{0:d}.{1:03d}',
-      dfdatetime_definitions.PRECISION_10_MILLISECONDS: '{0:d}.{1:02d}',
-      dfdatetime_definitions.PRECISION_100_MILLISECONDS: '{0:d}.{1:01d}'}
+    _TIMESTAMP_FORMAT_STRINGS = {
+        dfdatetime_definitions.PRECISION_1_NANOSECOND: "{0:d}.{1:09d}",
+        dfdatetime_definitions.PRECISION_10_NANOSECONDS: "{0:d}.{1:08d}",
+        dfdatetime_definitions.PRECISION_100_NANOSECONDS: "{0:d}.{1:07d}",
+        dfdatetime_definitions.PRECISION_1_MICROSECOND: "{0:d}.{1:06d}",
+        dfdatetime_definitions.PRECISION_10_MICROSECONDS: "{0:d}.{1:05d}",
+        dfdatetime_definitions.PRECISION_100_MICROSECONDS: "{0:d}.{1:04d}",
+        dfdatetime_definitions.PRECISION_1_MILLISECOND: "{0:d}.{1:03d}",
+        dfdatetime_definitions.PRECISION_10_MILLISECONDS: "{0:d}.{1:02d}",
+        dfdatetime_definitions.PRECISION_100_MILLISECONDS: "{0:d}.{1:01d}",
+    }
 
-  def __init__(self):
-    """Initializes a bodyfile generator."""
-    super().__init__()
-    self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
-    self._root_file_entry_identifier = None
+    def __init__(self):
+        """Initializes a bodyfile generator."""
+        super().__init__()
+        self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+        self._root_file_entry_identifier = None
 
-  def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
-    """Retrieves a bodyfile string representation of file attributes flags.
+    def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
+        """Retrieves a bodyfile string representation of file attributes flags.
 
-    Args:
-      file_type (str): bodyfile file type identifier.
-      file_attribute_flags (int): file attribute flags.
+        Args:
+          file_type (str): bodyfile file type identifier.
+          file_attribute_flags (int): file attribute flags.
 
-    Returns:
-      str: bodyfile representation of the file attributes flags.
-    """
-    string_parts = [file_type, 'r', 'w', 'x', 'r', 'w', 'x', 'r', 'w', 'x']
+        Returns:
+          str: bodyfile representation of the file attributes flags.
+        """
+        string_parts = [file_type, "r", "w", "x", "r", "w", "x", "r", "w", "x"]
 
-    if (file_attribute_flags & self._FILE_ATTRIBUTE_READONLY or
-        file_attribute_flags & self._FILE_ATTRIBUTE_SYSTEM):
-      string_parts[2] = '-'
-      string_parts[5] = '-'
-      string_parts[8] = '-'
+        if (
+            file_attribute_flags & self._FILE_ATTRIBUTE_READONLY
+            or file_attribute_flags & self._FILE_ATTRIBUTE_SYSTEM
+        ):
+            string_parts[2] = "-"
+            string_parts[5] = "-"
+            string_parts[8] = "-"
 
-    return ''.join(string_parts)
+        return "".join(string_parts)
 
-  def _GetModeString(self, mode):
-    """Retrieves a bodyfile string representation of a mode.
+    def _GetModeString(self, mode):
+        """Retrieves a bodyfile string representation of a mode.
 
-    Args:
-      mode (int): mode.
+        Args:
+          mode (int): mode.
 
-    Returns:
-      str: bodyfile representation of the mode.
-    """
-    string_parts = 10 * ['-']
+        Returns:
+          str: bodyfile representation of the mode.
+        """
+        string_parts = 10 * ["-"]
 
-    if mode & 0x0001:
-      string_parts[9] = 'x'
-    if mode & 0x0002:
-      string_parts[8] = 'w'
-    if mode & 0x0004:
-      string_parts[7] = 'r'
+        if mode & 0x0001:
+            string_parts[9] = "x"
+        if mode & 0x0002:
+            string_parts[8] = "w"
+        if mode & 0x0004:
+            string_parts[7] = "r"
 
-    if mode & 0x0008:
-      string_parts[6] = 'x'
-    if mode & 0x0010:
-      string_parts[5] = 'w'
-    if mode & 0x0020:
-      string_parts[4] = 'r'
+        if mode & 0x0008:
+            string_parts[6] = "x"
+        if mode & 0x0010:
+            string_parts[5] = "w"
+        if mode & 0x0020:
+            string_parts[4] = "r"
 
-    if mode & 0x0040:
-      string_parts[3] = 'x'
-    if mode & 0x0080:
-      string_parts[2] = 'w'
-    if mode & 0x0100:
-      string_parts[1] = 'r'
+        if mode & 0x0040:
+            string_parts[3] = "x"
+        if mode & 0x0080:
+            string_parts[2] = "w"
+        if mode & 0x0100:
+            string_parts[1] = "r"
 
-    string_parts[0] = self._FILE_TYPES.get(mode & 0xf000, '-')
+        string_parts[0] = self._FILE_TYPES.get(mode & 0xF000, "-")
 
-    return ''.join(string_parts)
+        return "".join(string_parts)
 
-  def _GetTimestamp(self, date_time):
-    """Retrieves a bodyfile timestamp representation of a date time value.
+    def _GetTimestamp(self, date_time):
+        """Retrieves a bodyfile timestamp representation of a date time value.
 
-    Args:
-      date_time (dfdatetime.DateTimeValues): date time value.
+        Args:
+          date_time (dfdatetime.DateTimeValues): date time value.
 
-    Returns:
-      str: bodyfile timestamp representation of the date time value.
-    """
-    if not date_time or date_time.timestamp == 0:
-      return ''
+        Returns:
+          str: bodyfile timestamp representation of the date time value.
+        """
+        if not date_time or date_time.timestamp == 0:
+            return ""
 
-    posix_timestamp, fraction_of_second = (
-        date_time.CopyToPosixTimestampWithFractionOfSecond())
-    format_string = self._TIMESTAMP_FORMAT_STRINGS.get(
-        date_time.precision, '{0:d}')
-    return format_string.format(posix_timestamp, fraction_of_second)
+        posix_timestamp, fraction_of_second = (
+            date_time.CopyToPosixTimestampWithFractionOfSecond()
+        )
+        format_string = self._TIMESTAMP_FORMAT_STRINGS.get(date_time.precision, "{0:d}")
+        return format_string.format(posix_timestamp, fraction_of_second)
 
-  def GetEntries(self, file_entry, path_segments):
-    """Retrieves bodyfile entry representations of a file entry.
+    def GetEntries(self, file_entry, path_segments):
+        """Retrieves bodyfile entry representations of a file entry.
 
-    Args:
-      file_entry (dfvfs.FileEntry): file entry.
-      path_segments (str): path segments of the full path of the file entry.
+        Args:
+          file_entry (dfvfs.FileEntry): file entry.
+          path_segments (str): path segments of the full path of the file entry.
 
-    Yields:
-      str: bodyfile entry.
-    """
-    file_attribute_flags = None
-    parent_file_reference = None
-    if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_FAT:
-      fsfat_file_entry = file_entry.GetFATFileEntry()
-      file_attribute_flags = fsfat_file_entry.file_attribute_flags
+        Yields:
+          str: bodyfile entry.
+        """
+        file_attribute_flags = None
+        parent_file_reference = None
+        if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_FAT:
+            fsfat_file_entry = file_entry.GetFATFileEntry()
+            file_attribute_flags = fsfat_file_entry.file_attribute_flags
 
-    elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
-      fsntfs_file_entry = file_entry.GetNTFSFileEntry()
-      file_attribute_flags = fsntfs_file_entry.file_attribute_flags
+        elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+            fsntfs_file_entry = file_entry.GetNTFSFileEntry()
+            file_attribute_flags = fsntfs_file_entry.file_attribute_flags
 
-      mft_attribute_index = getattr(file_entry.path_spec, 'mft_attribute', None)
-      if mft_attribute_index is not None:
-        parent_file_reference = (
-            fsntfs_file_entry.get_parent_file_reference_by_attribute_index(
-                mft_attribute_index))
+            mft_attribute_index = getattr(file_entry.path_spec, "mft_attribute", None)
+            if mft_attribute_index is not None:
+                parent_file_reference = (
+                    fsntfs_file_entry.get_parent_file_reference_by_attribute_index(
+                        mft_attribute_index
+                    )
+                )
 
-    stat_attribute = file_entry.GetStatAttribute()
+        stat_attribute = file_entry.GetStatAttribute()
 
-    if stat_attribute.inode_number is None:
-      inode_string = ''
-    elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_FAT:
-      inode_string = f'0x{stat_attribute.inode_number:x}'
-    elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
-      mft_entry_number = stat_attribute.inode_number & 0xffffffffffff
-      mft_sequence_number = stat_attribute.inode_number >> 48
-      inode_string = f'{mft_entry_number:d}-{mft_sequence_number:d}'
-    else:
-      inode_string = f'{stat_attribute.inode_number:d}'
+        if stat_attribute.inode_number is None:
+            inode_string = ""
+        elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_FAT:
+            inode_string = f"0x{stat_attribute.inode_number:x}"
+        elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+            mft_entry_number = stat_attribute.inode_number & 0xFFFFFFFFFFFF
+            mft_sequence_number = stat_attribute.inode_number >> 48
+            inode_string = f"{mft_entry_number:d}-{mft_sequence_number:d}"
+        else:
+            inode_string = f"{stat_attribute.inode_number:d}"
 
-    if file_entry.type_indicator not in (
-        dfvfs_definitions.TYPE_INDICATOR_FAT,
-        dfvfs_definitions.TYPE_INDICATOR_NTFS):
-      mode = getattr(stat_attribute, 'mode', None) or 0
-      mode_string = self._GetModeString(mode)
+        if file_entry.type_indicator not in (
+            dfvfs_definitions.TYPE_INDICATOR_FAT,
+            dfvfs_definitions.TYPE_INDICATOR_NTFS,
+        ):
+            mode = getattr(stat_attribute, "mode", None) or 0
+            mode_string = self._GetModeString(mode)
 
-    else:
-      if file_entry.entry_type == dfvfs_definitions.FILE_ENTRY_TYPE_DIRECTORY:
-        file_type = 'd'
-      elif file_entry.entry_type == dfvfs_definitions.FILE_ENTRY_TYPE_LINK:
-        file_type = 'l'
-      else:
-        file_type = '-'
+        else:
+            if file_entry.entry_type == dfvfs_definitions.FILE_ENTRY_TYPE_DIRECTORY:
+                file_type = "d"
+            elif file_entry.entry_type == dfvfs_definitions.FILE_ENTRY_TYPE_LINK:
+                file_type = "l"
+            else:
+                file_type = "-"
 
-      if file_attribute_flags is None:
-        mode_string = ''.join([file_type] + (3 * ['rwx']))
-      else:
-        mode_string = self._GetFileAttributeFlagsString(
-            file_type, file_attribute_flags)
+            if file_attribute_flags is None:
+                mode_string = "".join([file_type] + (3 * ["rwx"]))
+            else:
+                mode_string = self._GetFileAttributeFlagsString(
+                    file_type, file_attribute_flags
+                )
 
-    owner_identifier = ''
-    if stat_attribute.owner_identifier is not None:
-      owner_identifier = str(stat_attribute.owner_identifier)
+        owner_identifier = ""
+        if stat_attribute.owner_identifier is not None:
+            owner_identifier = str(stat_attribute.owner_identifier)
 
-    group_identifier = ''
-    if stat_attribute.group_identifier is not None:
-      group_identifier = str(stat_attribute.group_identifier)
+        group_identifier = ""
+        if stat_attribute.group_identifier is not None:
+            group_identifier = str(stat_attribute.group_identifier)
 
-    access_time = self._GetTimestamp(file_entry.access_time)
-    creation_time = self._GetTimestamp(file_entry.creation_time)
-    change_time = self._GetTimestamp(file_entry.change_time)
-    modification_time = self._GetTimestamp(file_entry.modification_time)
+        access_time = self._GetTimestamp(file_entry.access_time)
+        creation_time = self._GetTimestamp(file_entry.creation_time)
+        change_time = self._GetTimestamp(file_entry.change_time)
+        modification_time = self._GetTimestamp(file_entry.modification_time)
 
-    # TODO: add support to calculate MD5
-    md5_string = '0'
+        # TODO: add support to calculate MD5
+        md5_string = "0"
 
-    path_segments = [
-        (segment or '').translate(self._escape_characters)
-        for segment in path_segments]
-    file_entry_name_value = '/'.join(path_segments) or '/'
+        path_segments = [
+            (segment or "").translate(self._escape_characters)
+            for segment in path_segments
+        ]
+        file_entry_name_value = "/".join(path_segments) or "/"
 
-    if file_entry.IsRoot() and not file_entry_name_value.endswith('/'):
-      file_entry_name_value = f'{file_entry_name_value:s}/'
+        if file_entry.IsRoot() and not file_entry_name_value.endswith("/"):
+            file_entry_name_value = f"{file_entry_name_value:s}/"
 
-    if not file_entry.link:
-      name_value = file_entry_name_value
-    else:
-      if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
-        path_segments = file_entry.link.split('\\')
+        if not file_entry.link:
+            name_value = file_entry_name_value
+        else:
+            if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+                path_segments = file_entry.link.split("\\")
 
-        link_target = '/'.join([path_segments[0]] + [
-            segment.translate(self._escape_characters)
-            for segment in path_segments[1:]
-            if segment and segment != '.'])
-      else:
-        path_segments = file_entry.link.split('/')
+                link_target = "/".join(
+                    [path_segments[0]]
+                    + [
+                        segment.translate(self._escape_characters)
+                        for segment in path_segments[1:]
+                        if segment and segment != "."
+                    ]
+                )
+            else:
+                path_segments = file_entry.link.split("/")
 
-        link_target = '/'.join([
-            segment.translate(self._escape_characters)
-            for index, segment in enumerate(path_segments)
-            if (index == 0 or segment) and segment != '.'])
+                link_target = "/".join(
+                    [
+                        segment.translate(self._escape_characters)
+                        for index, segment in enumerate(path_segments)
+                        if (index == 0 or segment) and segment != "."
+                    ]
+                )
 
-      name_value = ' -> '.join([file_entry_name_value, link_target])
+            name_value = " -> ".join([file_entry_name_value, link_target])
 
-    size = str(file_entry.size)
+        size = str(file_entry.size)
 
-    yield '|'.join([
-        md5_string, name_value, inode_string, mode_string, owner_identifier,
-        group_identifier, size, access_time, modification_time, change_time,
-        creation_time])
+        yield "|".join(
+            [
+                md5_string,
+                name_value,
+                inode_string,
+                mode_string,
+                owner_identifier,
+                group_identifier,
+                size,
+                access_time,
+                modification_time,
+                change_time,
+                creation_time,
+            ]
+        )
 
-    for data_stream in file_entry.data_streams:
-      if data_stream.name:
-        data_stream_name = data_stream.name.translate(
-            self._escape_characters)
-        data_stream_name_value = ':'.join([
-            file_entry_name_value, data_stream_name])
+        for data_stream in file_entry.data_streams:
+            if data_stream.name:
+                data_stream_name = data_stream.name.translate(self._escape_characters)
+                data_stream_name_value = ":".join(
+                    [file_entry_name_value, data_stream_name]
+                )
 
-        data_stream_size = str(data_stream.size)
+                data_stream_size = str(data_stream.size)
 
-        yield '|'.join([
-            md5_string, data_stream_name_value, inode_string, mode_string,
-            owner_identifier, group_identifier, data_stream_size, access_time,
-            modification_time, change_time, creation_time])
+                yield "|".join(
+                    [
+                        md5_string,
+                        data_stream_name_value,
+                        inode_string,
+                        mode_string,
+                        owner_identifier,
+                        group_identifier,
+                        data_stream_size,
+                        access_time,
+                        modification_time,
+                        change_time,
+                        creation_time,
+                    ]
+                )
 
-    for attribute in file_entry.attributes:
-      if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
-        if (attribute.name == file_entry.name and
-            attribute.parent_file_reference == parent_file_reference):
-          attribute_name_value = ' '.join([
-              file_entry_name_value, '($FILE_NAME)'])
+        for attribute in file_entry.attributes:
+            if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
+                if (
+                    attribute.name == file_entry.name
+                    and attribute.parent_file_reference == parent_file_reference
+                ):
+                    attribute_name_value = " ".join(
+                        [file_entry_name_value, "($FILE_NAME)"]
+                    )
 
-          access_time = self._GetTimestamp(attribute.access_time)
-          creation_time = self._GetTimestamp(attribute.creation_time)
-          change_time = self._GetTimestamp(attribute.entry_modification_time)
-          modification_time = self._GetTimestamp(attribute.modification_time)
+                    access_time = self._GetTimestamp(attribute.access_time)
+                    creation_time = self._GetTimestamp(attribute.creation_time)
+                    change_time = self._GetTimestamp(attribute.entry_modification_time)
+                    modification_time = self._GetTimestamp(attribute.modification_time)
 
-          yield '|'.join([
-              md5_string, attribute_name_value, inode_string, mode_string,
-              owner_identifier, group_identifier, size, access_time,
-              modification_time, change_time, creation_time])
+                    yield "|".join(
+                        [
+                            md5_string,
+                            attribute_name_value,
+                            inode_string,
+                            mode_string,
+                            owner_identifier,
+                            group_identifier,
+                            size,
+                            access_time,
+                            modification_time,
+                            change_time,
+                            creation_time,
+                        ]
+                    )
