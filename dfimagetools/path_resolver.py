@@ -295,16 +295,16 @@ class PathResolver:
                     except (TypeError, ValueError):
                         logging.warning(
                             (
-                                f"Globstar with suffix \"{path_segment:s}\" in path "
-                                f"\"{path:s}\" not supported."
+                                f'Globstar with suffix "{path_segment:s}" in path '
+                                f'"{path:s}" not supported.'
                             )
                         )
 
             elif "**" in path_segment:
                 logging.warning(
                     (
-                        f"Globstar with prefix \"{path_segment:s}\" in path "
-                        f"\"{path:s}\" not supported."
+                        f'Globstar with prefix "{path_segment:s}" in path '
+                        f'"{path:s}" not supported.'
                     )
                 )
 
@@ -315,7 +315,7 @@ class PathResolver:
                 ):
                     logging.warning(
                         (
-                            f"Globstar \"{path_segment:s}\" in path \"{path:s}\" "
+                            f'Globstar "{path_segment:s}" in path "{path:s}" '
                             f"exceeds recursion maximum recursion depth, limiting to: "
                             f"{self._GLOBSTAR_RECURSION_LIMIT:d}."
                         )

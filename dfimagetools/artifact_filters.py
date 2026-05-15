@@ -136,7 +136,7 @@ class ArtifactDefinitionFiltersGenerator:
                     logging.error(
                         (
                             f"Unable to build find specification for path: "
-                            f"\"{path:s}\" with error: {exception!s}"
+                            f'"{path:s}" with error: {exception!s}'
                         )
                     )
                     continue
