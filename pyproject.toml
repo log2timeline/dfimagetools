@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dfimagetools"
-version = "20260507"
+version = "20260515"
 description = "Storage media image tools"
 maintainers = [
     { name = "Log2Timeline maintainers", email = "log2timeline-maintainers@googlegroups.com" },
@@ -66,6 +66,11 @@ source_analyzer = "dfimagetools.scripts.source_analyzer:Main"
 Documentation = "https://dfimagetools.readthedocs.io/en/latest"
 Homepage = "https://github.com/log2timeline/dfimagetools"
 Repository = "https://github.com/log2timeline/dfimagetools"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+include = "\\.pyi?$"
 
 [tool.setuptools]
 package-dir = {"dfimagetools" = "dfimagetools"}
