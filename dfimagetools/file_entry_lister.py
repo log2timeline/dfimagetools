@@ -20,7 +20,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         ["C:\\Windows", "C:\\WINNT", "C:\\WTSRV", "C:\\WINNT35"]
     )
 
-    def __init__(self, mediator=None, use_aliases=True):
+    def __init__(self, mediator=None, sector_size=None, use_aliases=True):
         """Initializes a file entry lister.
 
         Args:
@@ -29,7 +29,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
           use_aliases (Optional[bool]): True if partition and/or volume aliases
               should be used.
         """
-        super().__init__(mediator=mediator)
+        super().__init__(mediator=mediator, sector_size=sector_size)
         self._list_only_files = False
         self._use_aliases = use_aliases
 

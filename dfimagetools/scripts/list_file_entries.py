@@ -29,7 +29,6 @@ def Main():
     argument_parser = argparse.ArgumentParser(
         description=("Lists metadata of file entries in a storage media image.")
     )
-
     # TODO: add filter group
     argument_parser.add_argument(
         "--artifact_definitions",
@@ -39,11 +38,10 @@ def Main():
         metavar="PATH",
         action="store",
         help=(
-            "Path to a directory or file containing the artifact definition "
-            ".yaml files."
+            "Path to a directory or file containing the artifact definition .yaml "
+            "files."
         ),
     )
-
     argument_parser.add_argument(
         "--artifact_filters",
         "--artifact-filters",
@@ -52,9 +50,8 @@ def Main():
         default=None,
         metavar="NAMES",
         action="store",
-        help=("Comma separated list of names of artifact definitions to extract."),
+        help="Comma separated list of names of artifact definitions to extract.",
     )
-
     argument_parser.add_argument(
         "--custom_artifact_definitions",
         "--custom-artifact-definitions",
@@ -63,11 +60,10 @@ def Main():
         metavar="PATH",
         action="store",
         help=(
-            "Path to a directory or file containing custom artifact definition "
-            ".yaml files. "
+            "Path to a directory or file containing custom artifact definition .yaml "
+            "files. "
         ),
     )
-
     # TODO: add output group
     argument_parser.add_argument(
         "--no_aliases",
@@ -77,11 +73,10 @@ def Main():
         default=True,
         help=(
             "Disable the use of partition and/or volume aliases such as "
-            "/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices "
-            "such as /apfs1 instead."
+            "/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices such as "
+            "/apfs1 instead."
         ),
     )
-
     argument_parser.add_argument(
         "--output_format",
         "--output-format",
@@ -89,9 +84,18 @@ def Main():
         action="store",
         metavar="FORMAT",
         default="bodyfile",
-        help=("output format, default is bodyfile."),
+        help="output format, default is bodyfile.",
     )
-
+    argument_parser.add_argument(
+        "--sector_size",
+        "--sector-size",
+        dest="sector_size",
+        action="store",
+        metavar="SIZE",
+        type=int,
+        default=None,
+        help="number of bytes per sector.",
+    )
     # TODO: add source group.
     command_line.AddStorageMediaImageCLIArguments(argument_parser)
 
@@ -103,7 +107,6 @@ def Main():
         default=None,
         help="path of the storage media image.",
     )
-
     options = argument_parser.parse_args()
 
     if not options.source:
@@ -133,8 +136,8 @@ def Main():
 
         if not artifact_definitions and not options.custom_artifact_definitions:
             print(
-                "[ERROR] artifact filters were specified but no paths to "
-                "artifact definitions were provided."
+                "[ERROR] artifact filters were specified but no paths to artifact "
+                "definitions were provided."
             )
             print("")
             return 1
@@ -162,7 +165,9 @@ def Main():
                 registry.ReadFromFile(reader, options.custom_artifact_definitions)
 
     entry_lister = file_entry_lister.FileEntryLister(
-        mediator=mediator, use_aliases=options.use_aliases
+        mediator=mediator,
+        sector_size=options.sector_size,
+        use_aliases=options.use_aliases,
     )
     find_specs_generated = False
 

@@ -24,7 +24,6 @@ def Main():
             "storage media image."
         )
     )
-
     # TODO: add output group
     argument_parser.add_argument(
         "--no_aliases",
@@ -34,11 +33,20 @@ def Main():
         default=True,
         help=(
             "Disable the use of partition and/or volume aliases such as "
-            "/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices "
-            "such as /apfs1 instead."
+            "/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices such as "
+            "/apfs1 instead."
         ),
     )
-
+    argument_parser.add_argument(
+        "--sector_size",
+        "--sector-size",
+        dest="sector_size",
+        action="store",
+        metavar="SIZE",
+        type=int,
+        default=None,
+        help="number of bytes per sector.",
+    )
     # TODO: add source group
     command_line.AddStorageMediaImageCLIArguments(argument_parser)
 
@@ -50,7 +58,6 @@ def Main():
         default=None,
         help="path of the storage media image.",
     )
-
     options = argument_parser.parse_args()
 
     if not options.source:
@@ -65,11 +72,11 @@ def Main():
     mediator, volume_scanner_options = command_line.ParseStorageMediaImageCLIArguments(
         options
     )
-
     entry_lister = file_entry_lister.FileEntryLister(
-        mediator=mediator, use_aliases=options.use_aliases
+        mediator=mediator,
+        sector_size=options.sector_size,
+        use_aliases=options.use_aliases,
     )
-
     try:
         base_path_specs = entry_lister.GetBasePathSpecs(
             options.source, options=volume_scanner_options

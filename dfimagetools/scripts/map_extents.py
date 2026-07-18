@@ -19,9 +19,18 @@ def Main():
       int: exit code that is provided to sys.exit().
     """
     argument_parser = argparse.ArgumentParser(
-        description=("Maps extents in a storage media image.")
+        description="Maps extents in a storage media image."
     )
-
+    argument_parser.add_argument(
+        "--sector_size",
+        "--sector-size",
+        dest="sector_size",
+        action="store",
+        metavar="SIZE",
+        type=int,
+        default=None,
+        help="number of bytes per sector.",
+    )
     command_line.AddStorageMediaImageCLIArguments(argument_parser)
 
     argument_parser.add_argument(
@@ -32,7 +41,6 @@ def Main():
         default=None,
         help="path of the directory or storage media image.",
     )
-
     options = argument_parser.parse_args()
 
     if not options.source:
@@ -49,9 +57,9 @@ def Main():
     mediator, volume_scanner_options = command_line.ParseStorageMediaImageCLIArguments(
         options
     )
-
-    entry_lister = file_entry_lister.FileEntryLister(mediator=mediator)
-
+    entry_lister = file_entry_lister.FileEntryLister(
+        mediator=mediator, sector_size=options.sector_size
+    )
     try:
         base_path_specs = entry_lister.GetBasePathSpecs(
             options.source, options=volume_scanner_options
