@@ -21,7 +21,6 @@ def Main():
     argument_parser = argparse.ArgumentParser(
         description=("Analyzes volumes and file systems in a storage media image.")
     )
-
     argument_parser.add_argument(
         "--back_end",
         "--back-end",
@@ -31,16 +30,24 @@ def Main():
         default=None,
         help="preferred dfVFS back-end.",
     )
-
     argument_parser.add_argument(
         "--no-auto-recurse",
         "--no_auto_recurse",
         dest="no_auto_recurse",
         action="store_true",
         default=False,
-        help=("Indicate that the source scanner should not auto-recurse."),
+        help="Indicate that the source scanner should not auto-recurse.",
     )
-
+    argument_parser.add_argument(
+        "--sector_size",
+        "--sector-size",
+        dest="sector_size",
+        action="store",
+        metavar="SIZE",
+        type=int,
+        default=None,
+        help="number of bytes per sector.",
+    )
     argument_parser.add_argument(
         "source",
         nargs="?",
@@ -49,7 +56,6 @@ def Main():
         default=None,
         help="path of the storage media image.",
     )
-
     options = argument_parser.parse_args()
 
     if not options.source:
@@ -66,9 +72,10 @@ def Main():
     mediator = dfvfs_command_line.CLIVolumeScannerMediator()
 
     analyzer = source_analyzer.SourceAnalyzer(
-        auto_recurse=not options.no_auto_recurse, mediator=mediator
+        auto_recurse=not options.no_auto_recurse,
+        mediator=mediator,
+        sector_size=options.sector_size,
     )
-
     try:
         scan_step = 0
         for scan_context in analyzer.Analyze(options.source):

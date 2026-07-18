@@ -16,20 +16,23 @@ class SourceAnalyzer:
     # Class constant that defines the default read buffer size.
     _READ_BUFFER_SIZE = 32768
 
-    def __init__(self, auto_recurse=True, mediator=None):
+    def __init__(self, auto_recurse=True, mediator=None, sector_size=None):
         """Initializes a source analyzer.
 
         Args:
-          auto_recurse (Optional[bool]): True if the scan should automatically
-              recurse as far as possible.
+          auto_recurse (Optional[bool]): True if the scan should automatically recurse
+              as far as possible.
           mediator (Optional[VolumeScannerMediator]): a volume scanner mediator.
+          sector_size (Optional[int]): number of bytes per sector.
         """
         super().__init__()
         self._auto_recurse = auto_recurse
         self._encode_errors = "strict"
         self._mediator = mediator
         self._preferred_encoding = locale.getpreferredencoding()
-        self._source_scanner = dfvfs_source_scanner.SourceScanner()
+        self._source_scanner = dfvfs_source_scanner.SourceScanner(
+            sector_size=sector_size
+        )
 
     def Analyze(self, source_path):
         """Analyzes the source.
