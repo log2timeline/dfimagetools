@@ -53,7 +53,7 @@ class RecursiveHasher:
                 f"Unable to open path specification:\n{path_specification_string:s}"
                 f"with error: {exception!s}"
             )
-            return 'N/A (error)'
+            return "N/A (error)"
 
         if not file_object:
             return None
@@ -71,7 +71,7 @@ class RecursiveHasher:
                 f"Unable to read from path specification:\n"
                 f"{path_specification_string:s} with error: {exception!s}"
             )
-            return 'N/A (error)'
+            return "N/A (error)"
 
         return hash_context.hexdigest()
 
