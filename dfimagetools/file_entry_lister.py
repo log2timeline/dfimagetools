@@ -26,6 +26,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         Args:
           mediator (Optional[dfvfs.VolumeScannerMediator]): a volume scanner
               mediator.
+          sector_size (Optional[int]): number of bytes per sector.
           use_aliases (Optional[bool]): True if partition and/or volume aliases
               should be used.
         """

@@ -50,12 +50,10 @@ class RecursiveHasher:
                 self._escape_characters
             )
             logging.warning(
-                (
-                    f"Unable to open path specification:\n{path_specification_string:s}"
-                    f"with error: {exception!s}"
-                )
+                f"Unable to open path specification:\n{path_specification_string:s}"
+                f"with error: {exception!s}"
             )
-            return None
+            return 'N/A (error)'
 
         if not file_object:
             return None
@@ -70,12 +68,10 @@ class RecursiveHasher:
                 self._escape_characters
             )
             logging.warning(
-                (
-                    f"Unable to read from path specification:\n"
-                    f"{path_specification_string:s} with error: {exception!s}"
-                )
+                f"Unable to read from path specification:\n"
+                f"{path_specification_string:s} with error: {exception!s}"
             )
-            return None
+            return 'N/A (error)'
 
         return hash_context.hexdigest()
 
@@ -121,5 +117,6 @@ class RecursiveHasher:
             else:
                 hash_value = self._CalculateHashDataStream(file_entry, data_stream.name)
 
-            display_path = self._GetDisplayPath(path_segments, data_stream.name)
-            yield display_path, hash_value
+            if hash_value:
+                display_path = self._GetDisplayPath(path_segments, data_stream.name)
+                yield display_path, hash_value

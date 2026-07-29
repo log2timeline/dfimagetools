@@ -213,27 +213,29 @@ class BodyfileGenerator:
         if not file_entry.link:
             name_value = file_entry_name_value
         else:
-            if file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
+            if file_entry.link in (".", ".."):
+                link_target = file_entry.link
+
+            elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:
                 path_segments = file_entry.link.split("\\")
 
-                link_target = "/".join(
-                    [path_segments[0]]
-                    + [
-                        segment.translate(self._escape_characters)
-                        for segment in path_segments[1:]
-                        if segment and segment != "."
-                    ]
-                )
+                escaped_segments = [
+                    segment.translate(self._escape_characters)
+                    for segment in path_segments[1:]
+                    if segment and segment != "."
+                ]
+                escaped_segments.insert(0, path_segments[0])
+
+                link_target = "/".join(escaped_segments)
             else:
                 path_segments = file_entry.link.split("/")
 
-                link_target = "/".join(
-                    [
-                        segment.translate(self._escape_characters)
-                        for index, segment in enumerate(path_segments)
-                        if (index == 0 or segment) and segment != "."
-                    ]
-                )
+                escaped_segments = [
+                    segment.translate(self._escape_characters)
+                    for index, segment in enumerate(path_segments)
+                    if (index == 0 or segment) and segment != "."
+                ]
+                link_target = "/".join(escaped_segments)
 
             name_value = " -> ".join([file_entry_name_value, link_target])
 
@@ -254,14 +256,12 @@ class BodyfileGenerator:
                 creation_time,
             ]
         )
-
         for data_stream in file_entry.data_streams:
             if data_stream.name:
                 data_stream_name = data_stream.name.translate(self._escape_characters)
                 data_stream_name_value = ":".join(
                     [file_entry_name_value, data_stream_name]
                 )
-
                 data_stream_size = str(data_stream.size)
 
                 yield "|".join(
@@ -289,7 +289,6 @@ class BodyfileGenerator:
                     attribute_name_value = " ".join(
                         [file_entry_name_value, "($FILE_NAME)"]
                     )
-
                     access_time = self._GetTimestamp(attribute.access_time)
                     creation_time = self._GetTimestamp(attribute.creation_time)
                     change_time = self._GetTimestamp(attribute.entry_modification_time)

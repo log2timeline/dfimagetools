@@ -94,8 +94,6 @@ def Main():
                 for display_path, hash_value in hasher.CalculateHashesFileEntry(
                     file_entry, path_segments
                 ):
-                    if not hash_value:
-                        hash_value = "N/A"
                     print(f"{hash_value:s}\t{display_path:s}")
 
     except dfvfs_errors.ScannerError as exception:
