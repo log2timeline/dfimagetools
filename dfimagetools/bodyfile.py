@@ -213,7 +213,7 @@ class BodyfileGenerator:
         if not file_entry.link:
             name_value = file_entry_name_value
         else:
-            if file_entry.link in (".", ".."):
+            if file_entry.link in (".", "..", "/"):
                 link_target = file_entry.link
 
             elif file_entry.type_indicator == dfvfs_definitions.TYPE_INDICATOR_NTFS:

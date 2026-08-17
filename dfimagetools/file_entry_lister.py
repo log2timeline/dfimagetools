@@ -6,6 +6,7 @@ from dfvfs.helpers import file_system_searcher
 from dfvfs.helpers import volume_scanner
 from dfvfs.helpers import windows_path_resolver
 from dfvfs.lib import definitions as dfvfs_definitions
+from dfvfs.lib import errors as dfvfs_errors
 from dfvfs.path import factory as dfvfs_path_spec_factory
 from dfvfs.resolver import resolver as dfvfs_resolver
 from dfvfs.volume import factory as dfvfs_volume_system_factory
@@ -114,8 +115,19 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         if not self._list_only_files or file_entry.IsFile():
             yield file_entry, path_segments
 
-        for sub_file_entry in file_entry.sub_file_entries:
-            yield from self._ListFileEntry(file_system, sub_file_entry, path_segments)
+        try:
+            for sub_file_entry in file_entry.sub_file_entries:
+                yield from self._ListFileEntry(
+                    file_system, sub_file_entry, path_segments
+                )
+        except dfvfs_errors.BackEndError as exception:
+            path_specification_string = file_entry.path_spec.comparable.translate(
+                definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE
+            )
+            logging.warning(
+                f"Unable to traverse path specification:\n"
+                f"{path_specification_string:s}\nwith error: {exception!s}"
+            )
 
     def GetWindowsDirectory(self, base_path_spec):
         """Retrieves the Windows directory from the base path specification.
@@ -160,12 +172,8 @@ class FileEntryLister(volume_scanner.VolumeScanner):
                     definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE
                 )
                 logging.warning(
-                    "".join(
-                        [
-                            "Unable to open base path specification:\n",
-                            path_specification_string,
-                        ]
-                    )
+                    f"Unable to open base path specification:\n"
+                    f"{path_specification_string:s}"
                 )
                 return
 
