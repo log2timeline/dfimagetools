@@ -26,6 +26,14 @@ def Main():
     )
     # TODO: add output group
     argument_parser.add_argument(
+        "--extended_attributes",
+        "--extended-attributes",
+        dest="include_extended_attributes",
+        action="store_true",
+        default=True,
+        help="Include extended attributes",
+    )
+    argument_parser.add_argument(
         "--no_aliases",
         "--no-aliases",
         dest="use_aliases",
@@ -46,6 +54,14 @@ def Main():
         type=int,
         default=None,
         help="number of bytes per sector.",
+    )
+    argument_parser.add_argument(
+        "--stop_on_error",
+        "--stop-on-error",
+        dest="stop_on_error",
+        action="store_true",
+        default=False,
+        help="Stop on error",
     )
     # TODO: add source group
     command_line.AddStorageMediaImageCLIArguments(argument_parser)
@@ -75,6 +91,7 @@ def Main():
     entry_lister = file_entry_lister.FileEntryLister(
         mediator=mediator,
         sector_size=options.sector_size,
+        stop_on_error=options.stop_on_error,
         use_aliases=options.use_aliases,
     )
     try:
@@ -86,7 +103,10 @@ def Main():
             print("")
             return 1
 
-        hasher = recursive_hasher.RecursiveHasher()
+        hasher = recursive_hasher.RecursiveHasher(
+            include_extended_attributes=options.include_extended_attributes,
+            stop_on_error=options.stop_on_error,
+        )
         for base_path_spec in base_path_specs:
             file_entries_generator = entry_lister.ListFileEntries([base_path_spec])
 

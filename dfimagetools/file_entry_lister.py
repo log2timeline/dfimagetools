@@ -21,18 +21,22 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         ["C:\\Windows", "C:\\WINNT", "C:\\WTSRV", "C:\\WINNT35"]
     )
 
-    def __init__(self, mediator=None, sector_size=None, use_aliases=True):
+    def __init__(
+        self, mediator=None, sector_size=None, stop_on_error=False, use_aliases=True
+    ):
         """Initializes a file entry lister.
 
         Args:
           mediator (Optional[dfvfs.VolumeScannerMediator]): a volume scanner
               mediator.
           sector_size (Optional[int]): number of bytes per sector.
+          stop_on_error (Optional[bool]): True to stop on error.
           use_aliases (Optional[bool]): True if partition and/or volume aliases
               should be used.
         """
         super().__init__(mediator=mediator, sector_size=sector_size)
         self._list_only_files = False
+        self._stop_on_error = stop_on_error
         self._use_aliases = use_aliases
 
     def _GetBasePathSegments(self, base_path_spec):
@@ -124,10 +128,14 @@ class FileEntryLister(volume_scanner.VolumeScanner):
             path_specification_string = file_entry.path_spec.comparable.translate(
                 definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE
             )
-            logging.warning(
+            error_message = (
                 f"Unable to traverse path specification:\n"
                 f"{path_specification_string:s}\nwith error: {exception!s}"
             )
+            if self._stop_on_error:
+                raise RuntimeError(error_message)
+
+            logging.warning(error_message)
 
     def GetWindowsDirectory(self, base_path_spec):
         """Retrieves the Windows directory from the base path specification.
@@ -147,7 +155,6 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         path_resolver = windows_path_resolver.WindowsPathResolver(
             file_system, mount_point
         )
-
         for windows_path in self._WINDOWS_DIRECTORIES:
             windows_path_spec = path_resolver.ResolvePath(windows_path)
             if windows_path_spec is not None:
@@ -171,10 +178,14 @@ class FileEntryLister(volume_scanner.VolumeScanner):
                 path_specification_string = base_path_spec.comparable.translate(
                     definitions.NON_PRINTABLE_CHARACTER_TRANSLATION_TABLE
                 )
-                logging.warning(
+                error_message = (
                     f"Unable to open base path specification:\n"
                     f"{path_specification_string:s}"
                 )
+                if self._stop_on_error:
+                    raise RuntimeError(error_message)
+
+                logging.warning(error_message)
                 return
 
             if base_path_spec.type_indicator != dfvfs_definitions.TYPE_INDICATOR_OS:
