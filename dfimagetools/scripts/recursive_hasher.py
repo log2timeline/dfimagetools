@@ -30,7 +30,7 @@ def Main():
         "--extended-attributes",
         dest="include_extended_attributes",
         action="store_true",
-        default=True,
+        default=False,
         help="Include extended attributes",
     )
     argument_parser.add_argument(

@@ -5,6 +5,7 @@ import hashlib
 import logging
 
 from dfvfs.lib import errors as dfvfs_errors
+from dfvfs.vfs import ntfs_attribute
 
 from dfimagetools import definitions
 
@@ -150,7 +151,13 @@ class RecursiveHasher:
         Yields:
           tuple[str, str]: display path and hash value.
         """
-        lookup_path = tuple(path_segments[1:])
+        file_system = file_entry.GetFileSystem()
+        location = getattr(file_entry.path_spec, "location", None)
+        if location:
+            lookup_path = tuple(file_system.SplitPath(location))
+        else:
+            lookup_path = tuple(path_segments[1:])
+
         data_stream_name = None
 
         try:
@@ -186,7 +193,10 @@ class RecursiveHasher:
         if self._include_extended_attributes:
             try:
                 for attribute in file_entry.attributes:
-                    data_stream_name = attribute.name
+                    if isinstance(attribute, ntfs_attribute.NTFSAttribute):
+                        continue
+
+                    data_stream_name = getattr(attribute, "name", None)
                     hash_value = self._CalculateHashDataStream(
                         file_entry.path_spec, attribute, data_stream_name
                     )
