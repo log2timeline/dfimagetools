@@ -62,7 +62,6 @@ class BodyfileGeneratorTest(test_lib.BaseTestCase):
             location="/passwords.txt",
             parent=path_spec,
         )
-
         file_system = resolver.Resolver.OpenFileSystem(path_spec)
         file_entry = resolver.Resolver.OpenFileEntry(path_spec)
 
@@ -74,10 +73,19 @@ class BodyfileGeneratorTest(test_lib.BaseTestCase):
         test_bodyfile_generator = bodyfile.BodyfileGenerator()
 
         expected_bodyfile_entry = (
+            "N/A (skipped)|/passwords.txt|15|-r--------|151107|5000|116|1337961653|"
+            "1337961653|1337961663|"
+        )
+        bodyfile_entries = list(test_bodyfile_generator.GetEntries(*file_entries[0]))
+        self.assertEqual(len(bodyfile_entries), 1)
+        self.assertEqual(bodyfile_entries[0], expected_bodyfile_entry)
+
+        test_bodyfile_generator = bodyfile.BodyfileGenerator(use_original_md5=True)
+
+        expected_bodyfile_entry = (
             "0|/passwords.txt|15|-r--------|151107|5000|116|1337961653|"
             "1337961653|1337961663|"
         )
-
         bodyfile_entries = list(test_bodyfile_generator.GetEntries(*file_entries[0]))
         self.assertEqual(len(bodyfile_entries), 1)
         self.assertEqual(bodyfile_entries[0], expected_bodyfile_entry)
@@ -96,7 +104,7 @@ class BodyfileGeneratorTest(test_lib.BaseTestCase):
 
         self.assertEqual(len(file_entries), 40)
 
-        test_bodyfile_generator = bodyfile.BodyfileGenerator()
+        test_bodyfile_generator = bodyfile.BodyfileGenerator(use_original_md5=True)
 
         bodyfile_entries = []
         for file_entry, path_segments in file_entries:

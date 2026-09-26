@@ -96,6 +96,17 @@ def Main():
         default=None,
         help="number of bytes per sector.",
     )
+    argument_parser.add_argument(
+        "--use_original_md5",
+        "--use-original-md5",
+        dest="use_original_md5",
+        action="store_true",
+        default=False,
+        help=(
+            "Use the original format for MD5 values instead of a more human readable "
+            "variant"
+        ),
+    )
     # TODO: add source group.
     command_line.AddStorageMediaImageCLIArguments(argument_parser)
 
@@ -220,7 +231,9 @@ def Main():
                 print("# extended bodyfile 3 format")
                 bodyfile_header_printed = True
 
-            bodyfile_generator = bodyfile.BodyfileGenerator()
+            bodyfile_generator = bodyfile.BodyfileGenerator(
+                use_original_md5=options.use_original_md5
+            )
             for file_entry, path_segments in file_entries_generator:
                 for bodyfile_entry in bodyfile_generator.GetEntries(
                     file_entry, path_segments

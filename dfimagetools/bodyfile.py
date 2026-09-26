@@ -40,11 +40,17 @@ class BodyfileGenerator:
         dfdatetime_definitions.PRECISION_100_MILLISECONDS: "{0:d}.{1:01d}",
     }
 
-    def __init__(self):
-        """Initializes a bodyfile generator."""
+    def __init__(self, use_original_md5=False):
+        """Initializes a bodyfile generator.
+
+        Args:
+          use_original_md5 (Optional[bool]): True if the original format for MD5 values
+              instead of a more human readable variant should be used.
+        """
         super().__init__()
         self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
         self._root_file_entry_identifier = None
+        self._use_original_md5 = use_original_md5
 
     def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
         """Retrieves a bodyfile string representation of file attributes flags.
@@ -199,7 +205,11 @@ class BodyfileGenerator:
         modification_time = self._GetTimestamp(file_entry.modification_time)
 
         # TODO: add support to calculate MD5
-        md5_string = "0"
+        # Also see: https://github.com/log2timeline/dfimagetools/issues/139
+        if self._use_original_md5:
+            md5_string = "0"
+        else:
+            md5_string = "N/A (skipped)"
 
         path_segments = [
             (segment or "").translate(self._escape_characters)

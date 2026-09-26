@@ -61,7 +61,20 @@ The SleuthKit documentation does not define the MD5 values. From observations
 the following convention is used:
 
 * '0' if "hashing" is disabled;
-* '00000000000000000000000000000000' if "hashing" is enabled but no MD5 was calculated;
+* '00000000000000000000000000000000' if "hashing" is enabled but no MD5 was
+  calculated;
+* '[0-9a-f]{32}' if a MD5 was calculated.
+
+dfImageTools as of version 20260926 uses the following more human readable
+variant:
+
+* 'N/A (error)' if there was an error calculating the MD5, such as due to
+  corruption;
+* 'N/A (locked)' if the MD5 could not be calculated since a locked data stream,
+  such as an encrypted file, was encountered and the credentials to unlock it
+  were not available.
+* 'N/A (skipped)' if the MD5 was not calculated, either because "hashing" was
+  disabled or the data stream was skipped;
 * '[0-9a-f]{32}' if a MD5 was calculated.
 
 ### Name value
