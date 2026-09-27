@@ -80,7 +80,7 @@ variant:
 ### Name value
 
 The name value typically contains a full path of the file entry, but it can also
-contain a symobolic link target using the convention:
+contain a symbolic link target using the convention:
 
 ```
 ${PATH} -> ${SYMBOLIC_LINK_TARGET}
