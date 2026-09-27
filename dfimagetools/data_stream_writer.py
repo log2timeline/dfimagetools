@@ -63,7 +63,7 @@ class DataStreamWriter:
     def GetSanitizedPath(
         self, source_path_segments, source_data_stream_name, target_path
     ):
-        """Retrieves santized a path.
+        """Retrieves sanitized a path.
 
         This function replaces non-printable and other invalid path characters with
         an underscore "_".
@@ -80,7 +80,6 @@ class DataStreamWriter:
             path_segment.translate(self._invalid_path_characters)
             for path_segment in source_path_segments
         ]
-
         destination_path = os.path.join(target_path, *path_segments)
         if source_data_stream_name:
             source_data_stream_name = source_data_stream_name.translate(

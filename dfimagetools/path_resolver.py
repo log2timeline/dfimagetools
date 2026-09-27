@@ -278,7 +278,7 @@ class PathResolver:
           path_separator (str): path segment separator.
 
         Returns:
-          str: path with seperate globs for every globstar.
+          str: path with separate globs for every globstar.
         """
         expanded_paths = []
 
