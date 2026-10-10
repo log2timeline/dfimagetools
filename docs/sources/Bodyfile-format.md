@@ -1,8 +1,9 @@
 # Bodyfile format
 
 The bodyfile (or body file) format is an output format, as far as known,
-introduced by the SleuthKit. SleuthKit tools such as fls or ils, use a
-bodyfile for intermediate storage. These bodyfiles are then provided as
+introduced by introduced by the grave-robber tool of the The Coroner's Toolkit
+(TCT) and was adopted by the SleuthKit. SleuthKit tools such as fls or ils, use
+a bodyfile for intermediate storage. These bodyfiles are then provided as
 input to the mactime tool.
 
 The bodyfile format has been adopted by many other, non-SleuthKit tools, and
