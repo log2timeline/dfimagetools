@@ -264,9 +264,14 @@ def Main():
                     display_path = stream_writer.GetDisplayPath(
                         path_segments, data_stream.name
                     )
-                    destination_path = stream_writer.GetSanitizedPath(
-                        path_segments, data_stream.name, target_path
-                    )
+                    try:
+                        destination_path = stream_writer.GetSanitizedPath(
+                            path_segments, data_stream.name, target_path
+                        )
+                    except ValueError as exception:
+                        logging.warning(f"{display_path:s} skipped: {exception!s}")
+                        continue
+
                     logging.info(
                         f"Extracting: {display_path:s} to: {destination_path:s}"
                     )

@@ -48,6 +48,48 @@ class DataStreamWriterTest(test_lib.BaseTestCase):
         )
         self.assertEqual(sanitized_path, "passwords.txt")
 
+    def testGetSanitizedPathWithTraversalSegments(self):
+        """Tests the GetSanitizedPath function with path traversal segments."""
+        test_data_stream_writer = data_stream_writer.DataStreamWriter()
+
+        sanitized_path = test_data_stream_writer.GetSanitizedPath(
+            ["..", "passwords.txt"], "", "target"
+        )
+        self.assertEqual(sanitized_path, os.path.join("target", "_", "passwords.txt"))
+
+        sanitized_path = test_data_stream_writer.GetSanitizedPath(
+            ["etc", "..", "..", "passwd"], "", "target"
+        )
+        self.assertEqual(
+            sanitized_path,
+            os.path.join("target", "etc", "_", "_", "passwd"),
+        )
+
+        sanitized_path = test_data_stream_writer.GetSanitizedPath(
+            ["passwords.txt"], "../..", "target"
+        )
+        self.assertEqual(
+            sanitized_path,
+            os.path.join("target", "passwords.txt") + "_.._..",
+        )
+
+    def testGetSanitizedPathSymlinkEscape(self):
+        """Tests the GetSanitizedPath function with a symbolic link that escapes
+        the target path."""
+        test_data_stream_writer = data_stream_writer.DataStreamWriter()
+
+        with test_lib.TempDirectory() as temp_directory:
+            target_path = os.path.join(temp_directory, "target")
+            outside_path = os.path.join(temp_directory, "outside")
+            os.makedirs(target_path)
+            os.makedirs(outside_path)
+            os.symlink(outside_path, os.path.join(target_path, "link"))
+
+            with self.assertRaises(ValueError):
+                test_data_stream_writer.GetSanitizedPath(
+                    ["link", "passwords.txt"], "", target_path
+                )
+
     def testWriteDataStream(self):
         """Tests the WriteDataStream function."""
         path = self._GetTestFilePath(["image.qcow2"])

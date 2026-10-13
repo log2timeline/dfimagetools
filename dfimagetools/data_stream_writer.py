@@ -11,8 +11,14 @@ class DataStreamWriter:
     # Class constant that defines the default read buffer size.
     _READ_BUFFER_SIZE = 16 * 1024 * 1024
 
+    # Class constant that defines path traversal segments such as
+    # "." or ".." that are replaced with the replacement string.
+    _TRAVERSAL_SEGMENT_REPLACEMENT = "_"
+
     _INVALID_PATH_CHARACTERS = [
         os.path.sep,
+        "/",
+        "\\",
         "!",
         "$",
         "%",
@@ -68,6 +74,9 @@ class DataStreamWriter:
         This function replaces non-printable and other invalid path characters with
         an underscore "_".
 
+        It also replaces path traversal segments such as "." or ".." and ensures
+        that the resulting destination path is within the target path.
+
         Args:
           source_path_segments (list[str]): path segment of the source file.
           source_data_stream_name (str): name of the data stream of the source file.
@@ -75,11 +84,21 @@ class DataStreamWriter:
 
         Returns:
           str: sanitized path.
+
+        Raises:
+          ValueError: if the destination path is not within the target path.
         """
-        path_segments = [
-            path_segment.translate(self._invalid_path_characters)
-            for path_segment in source_path_segments
-        ]
+        path_segments = []
+        for path_segment in source_path_segments:
+            path_segment = path_segment.translate(self._invalid_path_characters)
+            if not path_segment:
+                continue
+
+            if path_segment in (".", ".."):
+                path_segment = self._TRAVERSAL_SEGMENT_REPLACEMENT
+
+            path_segments.append(path_segment)
+
         destination_path = os.path.join(target_path, *path_segments)
         if source_data_stream_name:
             source_data_stream_name = source_data_stream_name.translate(
@@ -87,7 +106,36 @@ class DataStreamWriter:
             )
             destination_path = "_".join([destination_path, source_data_stream_name])
 
+        if not self._IsPathContained(target_path, destination_path):
+            raise ValueError(
+                f"Destination path {destination_path:s} is not within "
+                f"target path {target_path:s}"
+            )
+
         return destination_path
+
+    def _IsPathContained(self, target_path, destination_path):
+        """Determines if a destination path is within a target path.
+
+        Note that symbolic links are resolved, so that a symbolic link that
+        points outside of the target path is considered to be outside.
+
+        Args:
+          target_path (str): path of the target directory.
+          destination_path (str): path of the destination file.
+
+        Returns:
+          bool: True if the destination path is within the target path
+              or False if not.
+        """
+        normalized_target_path = os.path.realpath(target_path)
+        normalized_destination_path = os.path.realpath(destination_path)
+
+        if normalized_destination_path == normalized_target_path:
+            return True
+
+        target_directory_path = normalized_target_path + os.path.sep
+        return normalized_destination_path.startswith(target_directory_path)
 
     def WriteDataStream(self, file_entry, data_stream_name, destination_path):
         """Writes the contents of the source data stream to a destination file.
