@@ -29,7 +29,7 @@ def Main():
       int: exit code that is provided to sys.exit().
     """
     argument_parser = argparse.ArgumentParser(
-        description=("Extracts data streams from a storage media image.")
+        description="Extracts data streams from a storage media image."
     )
     # TODO: add filter group
     argument_parser.add_argument(
@@ -67,13 +67,25 @@ def Main():
         ),
     )
     argument_parser.add_argument(
-        "--path",
-        dest="path_filter",
-        type=str,
-        default=None,
-        metavar="PATH",
-        action="store",
-        help="Path of data stream to extract.",
+        "--include_duplicates",
+        "--include-duplicates",
+        dest="include_duplicates",
+        action="store_true",
+        default=False,
+        help=(
+            "By default a digest hash (SHA-256) is calculated for each data stream. "
+            "These hashes are compared to the previously extracted files and "
+            "duplicates are skipped. Use this option to include duplicate files in "
+            "the extraction."
+        ),
+    )
+    argument_parser.add_argument(
+        "--no_hashes",
+        "--no-hashes",
+        dest="no_hashes",
+        action="store_true",
+        default=False,
+        help="Do not generate the hashes.json file.",
     )
     # TODO: add output group
     argument_parser.add_argument(
@@ -87,6 +99,15 @@ def Main():
             "/apfs{f449e580-e355-4e74-8880-05e46e4e3b1e} and use indices such as "
             "/apfs1 instead."
         ),
+    )
+    argument_parser.add_argument(
+        "--path",
+        dest="path_filter",
+        type=str,
+        default=None,
+        metavar="PATH",
+        action="store",
+        help="Path of data stream to extract.",
     )
     argument_parser.add_argument(
         "--sector_size",
@@ -109,27 +130,6 @@ def Main():
             "target (or destination) path of a directory where the extracted data "
             "streams should be stored."
         ),
-    )
-    argument_parser.add_argument(
-        "--include_duplicates",
-        "--include-duplicates",
-        dest="include_duplicates",
-        action="store_true",
-        default=False,
-        help=(
-            "By default a digest hash (SHA-256) is calculated for each file "
-            "(data stream). These hashes are compared to the previously "
-            "extracted files and duplicates are skipped. Use this option to "
-            "include duplicate files in the extraction."
-        ),
-    )
-    argument_parser.add_argument(
-        "--no_hashes",
-        "--no-hashes",
-        dest="no_hashes",
-        action="store_true",
-        default=False,
-        help="Do not generate the hashes.json file.",
     )
     # TODO: add source group
     command_line.AddStorageMediaImageCLIArguments(argument_parser)
