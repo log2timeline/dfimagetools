@@ -2,6 +2,7 @@
 """Console script to extract data streams."""
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -109,6 +110,27 @@ def Main():
             "streams should be stored."
         ),
     )
+    argument_parser.add_argument(
+        "--include_duplicates",
+        "--include-duplicates",
+        dest="include_duplicates",
+        action="store_true",
+        default=False,
+        help=(
+            "By default a digest hash (SHA-256) is calculated for each file "
+            "(data stream). These hashes are compared to the previously "
+            "extracted files and duplicates are skipped. Use this option to "
+            "include duplicate files in the extraction."
+        ),
+    )
+    argument_parser.add_argument(
+        "--no_hashes",
+        "--no-hashes",
+        dest="no_hashes",
+        action="store_true",
+        default=False,
+        help="Do not generate the hashes.json file.",
+    )
     # TODO: add source group
     command_line.AddStorageMediaImageCLIArguments(argument_parser)
 
@@ -209,6 +231,18 @@ def Main():
     )
     find_specs_generated = False
 
+    # A map between data stream SHA-256 digests and the relative paths of data
+    # streams extracted from the source.
+    relative_paths_by_digest = {}
+
+    # A map between data stream SHA-256 digests and the display path of the
+    # data stream that was first extracted with that digest.
+    first_extraction_by_digest = {}
+
+    # Hashing is only needed for de-duplication or generating the hashes.json
+    # file.
+    hash_data_streams = not (options.include_duplicates and options.no_hashes)
+
     try:
         base_path_specs = entry_lister.GetBasePathSpecs(
             options.source, options=volume_scanner_options
@@ -272,15 +306,52 @@ def Main():
                         logging.warning(f"{display_path:s} skipped: {exception!s}")
                         continue
 
+                    digest = None
+                    if hash_data_streams:
+                        try:
+                            digest = stream_writer.CalculateHash(
+                                file_entry, data_stream.name
+                            )
+                        except (OSError, dfvfs_errors.BackEndError) as exception:
+                            logging.warning(f"{display_path:s} skipped: {exception!s}")
+                            continue
+
+                        relative_paths_by_digest.setdefault(digest, []).append(
+                            os.path.relpath(destination_path, target_path)
+                        )
+
+                        if not options.include_duplicates:
+                            first_extraction = first_extraction_by_digest.get(digest)
+                            if first_extraction:
+                                logging.warning(
+                                    f"{display_path:s} skipped: duplicate of "
+                                    f"{first_extraction:s} with hash: {digest:s}"
+                                )
+                                continue
+
+                    if os.path.exists(destination_path):
+                        logging.warning(
+                            f"{display_path:s} skipped: destination file already "
+                            f"exists: {destination_path:s}"
+                        )
+                        continue
+
+                    if digest and not options.include_duplicates:
+                        first_extraction_by_digest[digest] = display_path
+
                     logging.info(
                         f"Extracting: {display_path:s} to: {destination_path:s}"
                     )
                     destination_directory = os.path.dirname(destination_path)
                     os.makedirs(destination_directory, exist_ok=True)
 
-                    stream_writer.WriteDataStream(
-                        file_entry, data_stream.name, destination_path
-                    )
+                    try:
+                        stream_writer.WriteDataStream(
+                            file_entry, data_stream.name, destination_path
+                        )
+                    except (OSError, dfvfs_errors.BackEndError) as exception:
+                        logging.warning(f"{display_path:s} skipped: {exception!s}")
+                        break
 
     except dfvfs_errors.ScannerError as exception:
         print(f"[ERROR] {exception!s}", file=sys.stderr)
@@ -291,6 +362,17 @@ def Main():
         print("Aborted by user.", file=sys.stderr)
         print("")
         return 1
+
+    if not options.no_hashes:
+        logging.info(f"Writing hashes.json to: {target_path:s}")
+
+        hashes_file_path = os.path.join(target_path, "hashes.json")
+        with open(hashes_file_path, "w", encoding="utf-8") as file_object:
+            json_data = [
+                {"sha256": digest, "paths": paths}
+                for digest, paths in sorted(relative_paths_by_digest.items())
+            ]
+            json.dump(json_data, file_object, indent=2)
 
     if options.artifact_filters and not find_specs_generated:
         print(

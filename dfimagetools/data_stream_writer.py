@@ -1,5 +1,6 @@
 """Helper to write data streams."""
 
+import hashlib
 import os
 
 from dfimagetools import definitions
@@ -157,3 +158,30 @@ class DataStreamWriter:
                 while data:
                     destination_file_object.write(data)
                     data = source_file_object.read(self._READ_BUFFER_SIZE)
+
+    def CalculateHash(self, file_entry, data_stream_name):
+        """Calculates the SHA-256 hash of the contents of a data stream.
+
+        Args:
+          file_entry (dfvfs.FileEntry): file entry containing the data stream.
+          data_stream_name (str): name of the data stream.
+
+        Returns:
+          str: hexadecimal representation of the SHA-256 hash of the data stream.
+
+        Raises:
+          OSError: if the contents of the data stream cannot be read.
+        """
+        file_object = file_entry.GetFileObject(data_stream_name=data_stream_name)
+        if not file_object:
+            raise OSError("No data stream available.")
+
+        hash_context = hashlib.sha256()
+
+        file_object.seek(0, os.SEEK_SET)
+        data = file_object.read(self._READ_BUFFER_SIZE)
+        while data:
+            hash_context.update(data)
+            data = file_object.read(self._READ_BUFFER_SIZE)
+
+        return hash_context.hexdigest()
