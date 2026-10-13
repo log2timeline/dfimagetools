@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for the helper to write data streams."""
 
+import hashlib
 import os
 import unittest
 
@@ -127,6 +128,31 @@ class DataStreamWriterTest(test_lib.BaseTestCase):
                 file_data = file_object.read()
 
             self.assertEqual(file_data, self._FILE_DATA)
+
+    def testCalculateHash(self):
+        """Tests the CalculateHash function."""
+        path = self._GetTestFilePath(["image.qcow2"])
+        self._SkipIfPathNotExists(path)
+
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_OS, location=path
+        )
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_QCOW, parent=path_spec
+        )
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_TSK,
+            location="/passwords.txt",
+            parent=path_spec,
+        )
+
+        file_entry = resolver.Resolver.OpenFileEntry(path_spec)
+
+        test_data_stream_writer = data_stream_writer.DataStreamWriter()
+        hash_value = test_data_stream_writer.CalculateHash(file_entry, "")
+
+        expected_hash = hashlib.sha256(self._FILE_DATA).hexdigest()
+        self.assertEqual(hash_value, expected_hash)
 
 
 if __name__ == "__main__":
