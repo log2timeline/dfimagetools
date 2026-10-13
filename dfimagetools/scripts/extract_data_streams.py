@@ -269,9 +269,7 @@ def Main():
                             path_segments, data_stream.name, target_path
                         )
                     except ValueError as exception:
-                        logging.warning(
-                            f"{display_path:s} skipped: {exception!s}"
-                        )
+                        logging.warning(f"{display_path:s} skipped: {exception!s}")
                         continue
 
                     logging.info(
