@@ -253,7 +253,6 @@ def Main():
     mediator, volume_scanner_options = command_line.ParseStorageMediaImageCLIArguments(
         options
     )
-
     file_entry_filter_collection = file_entry_filters.FileEntryFilterCollection()
 
     extension_filter = options.extension_filter

@@ -10,6 +10,7 @@ class FileEntryFilter:
     """File entry filter interface."""
 
     # pylint: disable=redundant-returns-doc
+
     @abc.abstractmethod
     def Describe(self):
         """Retrieves a human readable description of the filter.
@@ -18,7 +19,6 @@ class FileEntryFilter:
           list[str]: human readable description lines of the filter.
         """
 
-    # pylint: disable=redundant-returns-doc
     @abc.abstractmethod
     def Matches(self, file_entry):
         """Compares the file entry against the filter.
@@ -120,6 +120,7 @@ class DateTimeFileEntryFilter(FileEntryFilter):
         for date_time_range in self._date_time_ranges:
             if date_time_range.start_date_time is None:
                 end_time_string = date_time_range.end_date_time.CopyToDateTimeString()
+
                 lines.append(
                     f"\t{date_time_range.time_value:s} after {end_time_string:s}"
                 )
@@ -137,6 +138,7 @@ class DateTimeFileEntryFilter(FileEntryFilter):
                     date_time_range.start_date_time.CopyToDateTimeString()
                 )
                 end_time_string = date_time_range.end_date_time.CopyToDateTimeString()
+
                 lines.append(
                     f"\t{date_time_range.time_value:s} between {start_time_string:s} "
                     f"and {end_time_string:s}"
