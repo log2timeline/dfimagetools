@@ -225,7 +225,12 @@ def Main():
             print("")
             return 1
 
-    elif not options.path_filter:
+    elif not (
+        options.path_filter
+        or options.name_filter
+        or options.extension_filter
+        or options.time_filters
+    ):
         print("[ERROR] no extraction filters were specified.")
         print("")
         return 1
@@ -302,6 +307,8 @@ def Main():
         logging.info("File entry filters:")
         for line in file_entry_filter_collection.Describe():
             logging.info(line)
+
+    filter_generator = None
 
     if options.artifact_filters:
         registry = artifacts_registry.ArtifactDefinitionsRegistry()
@@ -397,10 +404,12 @@ def Main():
                     continue
 
                 find_specs_generated = True
+                file_entries_generator = entry_lister.ListFileEntriesWithFindSpecs(
+                    [base_path_spec], find_specs
+                )
+            else:
+                file_entries_generator = entry_lister.ListFileEntries([base_path_spec])
 
-            file_entries_generator = entry_lister.ListFileEntriesWithFindSpecs(
-                [base_path_spec], find_specs
-            )
             stream_writer = data_stream_writer.DataStreamWriter()
 
             for file_entry, path_segments in file_entries_generator:
