@@ -6,8 +6,8 @@ sources:
 - type: FILE
   attributes:
     paths:
-      - '/file_hardlink1'
-      - '/testdir1/testfile1'
+    - '/file_hardlink1'
+    - '/testdir1/testfile1'
     separator: '/'
 supported_os: [Windows]
 ---
@@ -17,7 +17,7 @@ sources:
 - type: FILE
   attributes:
     paths:
-      - '/testdir2/TestFile1'
-      - '/testdir2/testfile1'
+    - '/testdir2/TestFile1'
+    - '/testdir2/testfile1'
     separator: '/'
 supported_os: [Windows]

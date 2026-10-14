@@ -100,7 +100,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         real_exists = os.path.exists
 
         def FakeExists(path):
-            if path == "/usr/share/artifacts":
+            if path.replace("\\", "/") == "/usr/share/artifacts":
                 return False
 
             return real_exists(path)
@@ -193,7 +193,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertEqual(0, exit_code)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{target_path:s}/p1/testdir2/TestFile1",
+                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
                 error_output,
             )
             self.assertIn(f"Writing hashes.json to: {target_path:s}", error_output)
@@ -211,7 +211,10 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
 
             self.assertEqual(1, len(hashes))
             self.assertEqual(digest, hashes[0]["sha256"])
-            self.assertEqual(["p1/testdir2/TestFile1"], hashes[0]["paths"])
+            self.assertEqual(
+                [os.path.join("p1", "testdir2", "TestFile1")],
+                hashes[0]["paths"],
+            )
 
     def testMainExtractSingleFileWithoutPartition(self):
         """Tests main when extracting a file using a partitionless path."""
@@ -234,7 +237,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertEqual(0, exit_code)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{target_path:s}/p1/testdir2/TestFile1",
+                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
                 error_output,
             )
             extracted_path = os.path.join(target_path, "p1", "testdir2", "TestFile1")
@@ -295,7 +298,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertEqual(0, exit_code)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{target_path:s}/p1/testdir2/TestFile1",
+                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
                 error_output,
             )
             for path_segments in (
@@ -314,14 +317,11 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             # On the case-insensitive NTFS volume both file paths in the
             # definition match both files in the image, so each data stream
             # is hashed twice.
+            test_file1 = os.path.join("p1", "testdir2", "TestFile1")
+            test_file2 = os.path.join("p1", "testdir2", "testfile1")
             hash_paths = sorted(path for hash in hashes for path in hash["paths"])
             self.assertEqual(
-                [
-                    "p1/testdir2/TestFile1",
-                    "p1/testdir2/TestFile1",
-                    "p1/testdir2/testfile1",
-                    "p1/testdir2/testfile1",
-                ],
+                [test_file1, test_file1, test_file2, test_file2],
                 hash_paths,
             )
             self.assertNotEqual(hashes[0]["sha256"], hashes[1]["sha256"])
@@ -369,7 +369,10 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertEqual(1, len(hashes))
             self.assertEqual(digest, hashes[0]["sha256"])
             self.assertEqual(
-                ["p1/file_hardlink1", "p1/testdir1/testfile1"],
+                [
+                    os.path.join("p1", "file_hardlink1"),
+                    os.path.join("p1", "testdir1", "testfile1"),
+                ],
                 hashes[0]["paths"],
             )
 
@@ -422,7 +425,10 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 hashes[0]["sha256"],
             )
             self.assertEqual(
-                ["p1/file_hardlink1", "p1/testdir1/testfile1"],
+                [
+                    os.path.join("p1", "file_hardlink1"),
+                    os.path.join("p1", "testdir1", "testfile1"),
+                ],
                 hashes[0]["paths"],
             )
 
@@ -447,7 +453,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertEqual(0, exit_code)
             self.assertIn(
                 "Extracting: /p1/file_hardlink1 to: "
-                f"{target_path:s}/p1/file_hardlink1",
+                f"{os.path.join(target_path, 'p1', 'file_hardlink1'):s}",
                 error_output,
             )
             extracted_path = os.path.join(target_path, "p1", "file_hardlink1")
@@ -458,7 +464,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 hashes = json.load(file_object)
 
             self.assertEqual(1, len(hashes))
-            self.assertEqual(["p1/file_hardlink1"], hashes[0]["paths"])
+            self.assertEqual([os.path.join("p1", "file_hardlink1")], hashes[0]["paths"])
 
     def testMainExtractExtensionFilter(self):
         """Tests main when extracting files using an extension filter."""
@@ -479,9 +485,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             )
 
             self.assertEqual(0, exit_code)
+            destination_path = os.path.join(
+                target_path, "p1", "System Volume Information", "WPSettings.dat"
+            )
             self.assertIn(
                 "Extracting: /p1/System Volume Information/WPSettings.dat to: "
-                f"{target_path:s}/p1/System Volume Information/WPSettings.dat",
+                f"{destination_path:s}",
                 error_output,
             )
 
@@ -491,7 +500,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
 
             self.assertEqual(1, len(hashes))
             self.assertEqual(
-                ["p1/System Volume Information/WPSettings.dat"],
+                [os.path.join("p1", "System Volume Information", "WPSettings.dat")],
                 hashes[0]["paths"],
             )
 
@@ -518,7 +527,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertEqual(0, exit_code)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{target_path:s}/p1/testdir2/TestFile1",
+                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
                 error_output,
             )
 

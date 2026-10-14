@@ -100,7 +100,7 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
         real_exists = os.path.exists
 
         def FakeExists(path):
-            if path == "/usr/share/artifacts":
+            if path.replace("\\", "/") == "/usr/share/artifacts":
                 return False
 
             return real_exists(path)
