@@ -16,6 +16,7 @@ from dfvfs.lib import errors as dfvfs_errors
 
 from dfimagetools import artifact_filters
 from dfimagetools import data_stream_writer
+from dfimagetools import file_entry_filters
 from dfimagetools import file_entry_lister
 from dfimagetools import path_filters
 from dfimagetools import windows_registry
@@ -31,7 +32,6 @@ def Main():
     argument_parser = argparse.ArgumentParser(
         description="Extracts data streams from a storage media image."
     )
-    # TODO: add filter group
     argument_parser.add_argument(
         "--artifact_definitions",
         "--artifact-definitions",
@@ -43,16 +43,6 @@ def Main():
             "Path to a directory or file containing the artifact definition .yaml "
             "files."
         ),
-    )
-    argument_parser.add_argument(
-        "--artifact_filters",
-        "--artifact-filters",
-        dest="artifact_filters",
-        type=str,
-        default=None,
-        metavar="NAMES",
-        action="store",
-        help="Comma separated list of names of artifact definitions to extract.",
     )
     argument_parser.add_argument(
         "--custom_artifact_definitions",
@@ -101,15 +91,6 @@ def Main():
         ),
     )
     argument_parser.add_argument(
-        "--path",
-        dest="path_filter",
-        type=str,
-        default=None,
-        metavar="PATH",
-        action="store",
-        help="Path of data stream to extract.",
-    )
-    argument_parser.add_argument(
         "--sector_size",
         "--sector-size",
         dest="sector_size",
@@ -129,6 +110,80 @@ def Main():
         help=(
             "target (or destination) path of a directory where the extracted data "
             "streams should be stored."
+        ),
+    )
+    filter_group = argument_parser.add_argument_group(
+        title="filter",
+        description="Options for filtering the data streams to be extracted.",
+    )
+    filter_group.add_argument(
+        "--artifact_filters",
+        "--artifact-filters",
+        dest="artifact_filters",
+        type=str,
+        default=None,
+        metavar="NAMES",
+        action="store",
+        help="Comma separated list of names of artifact definitions to extract.",
+    )
+    filter_group.add_argument(
+        "--extension_filter",
+        "--extension-filter",
+        dest="extension_filter",
+        type=str,
+        default=None,
+        metavar="EXTENSIONS",
+        action="store",
+        help=(
+            "Filter on file name extensions. This option accepts multiple comma "
+            'separated values e.g. "csv,docx,pst".'
+        ),
+    )
+    filter_group.add_argument(
+        "--name_filter",
+        "--name-filter",
+        dest="name_filter",
+        type=str,
+        default=None,
+        metavar="NAMES",
+        action="store",
+        help=(
+            "Filter on file names. This option accepts a comma separated "
+            'string denoting all file names, e.g. "NTUSER.DAT,UsrClass.dat".'
+        ),
+    )
+    filter_group.add_argument(
+        "--path",
+        dest="path_filter",
+        type=str,
+        default=None,
+        metavar="PATH",
+        action="store",
+        help="Path of data stream to extract.",
+    )
+    filter_group.add_argument(
+        "--time_filter",
+        "--time-filter",
+        dest="time_filters",
+        type=str,
+        default=[],
+        metavar="TIME_START_END",
+        action="append",
+        help=(
+            "Filter based on file entry time ranges. This parameter "
+            'is formatted as "TIME_VALUE,START_DATE_TIME,END_DATE_TIME" where '
+            "TIME_VALUE defines which file entry timestamp the filter applies "
+            "to e.g. atime, ctime, crtime, bkup, etc. START_DATE_TIME and "
+            "END_DATE_TIME define respectively the start and end of the "
+            "time range. A time range requires at minimum one of the two "
+            "timestamps to be set. The date and time values are formatted as: "
+            "YYYY-MM-DD hh:mm:ss.######[+-]##:## where # are numeric digits "
+            "ranging from 0 to 9 and the seconds fraction can be either 3 "
+            "or 6 digits. The time of day, seconds fraction and time zone "
+            "offset are optional. The default time zone is UTC. "
+            'E.g. "atime, 2013-01-01 23:12:14, 2013-02-23". This parameter '
+            "can be repeated as needed to add additional time boundaries, "
+            "e.g. once for atime, once for crtime, etc."
         ),
     )
     # TODO: add source group
@@ -193,6 +248,61 @@ def Main():
     mediator, volume_scanner_options = command_line.ParseStorageMediaImageCLIArguments(
         options
     )
+
+    file_entry_filter_collection = file_entry_filters.FileEntryFilterCollection()
+
+    extension_filter = options.extension_filter
+    if extension_filter:
+        extensions = [
+            extension.strip().lower() for extension in extension_filter.split(",")
+        ]
+        file_entry_filter_collection.AddFilter(
+            file_entry_filters.ExtensionsFileEntryFilter(extensions)
+        )
+
+    name_filter = options.name_filter
+    if name_filter:
+        names = [name.strip().lower() for name in name_filter.split(",")]
+        file_entry_filter_collection.AddFilter(
+            file_entry_filters.NamesFileEntryFilter(names)
+        )
+
+    if options.time_filters:
+        time_filter = file_entry_filters.DateTimeFileEntryFilter()
+        for time_filter_string in options.time_filters:
+            time_filter_pieces = time_filter_string.split(",")
+            if len(time_filter_pieces) != 3:
+                print(
+                    f"[ERROR] unsupported time filter: {time_filter_string:s} "
+                    "is not formatted as TIME_START_END."
+                )
+                print("")
+                return 1
+
+            time_value, start_time_string, end_time_string = (
+                piece.strip() for piece in time_filter_pieces
+            )
+            try:
+                time_filter.AddDateTimeRange(
+                    time_value,
+                    start_time_string=start_time_string,
+                    end_time_string=end_time_string,
+                )
+            except ValueError as exception:
+                print(
+                    f"[ERROR] unsupported time filter: {time_filter_string:s} "
+                    f"with error: {exception!s}"
+                )
+                print("")
+                return 1
+
+        file_entry_filter_collection.AddFilter(time_filter)
+
+    if file_entry_filter_collection.HasFilters():
+        logging.info("File entry filters:")
+        for line in file_entry_filter_collection.Describe():
+            logging.info(line)
+
     if options.artifact_filters:
         registry = artifacts_registry.ArtifactDefinitionsRegistry()
         reader = artifacts_reader.YamlArtifactsReader()
@@ -294,6 +404,9 @@ def Main():
             stream_writer = data_stream_writer.DataStreamWriter()
 
             for file_entry, path_segments in file_entries_generator:
+                if not file_entry_filter_collection.Matches(file_entry):
+                    continue
+
                 for data_stream in file_entry.data_streams:
                     display_path = stream_writer.GetDisplayPath(
                         path_segments, data_stream.name
