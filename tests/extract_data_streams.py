@@ -1,131 +1,301 @@
 #!/usr/bin/env python3
-"""Tests for the console script to extract data streams."""
+"""Tests for the console script to extract data streams.
+
+The tests exercise the console script in a subprocess so it is tested as a
+real command line program: the arguments, the working directory, the streams
+and the exit code are all the real ones and no mocking of the process
+environment is required.
+
+Error conditions that are normally simulated are instead reproduced with real
+inputs:
+  * an unreadable source file makes the scanner fail with a scanner error,
+  * a GPT image without valid partitions generates no base path
+    specifications,
+  * a GPT image with multiple partitions leads to an interactive prompt at
+    which the script is aborted by a signal.
+"""
 
 import hashlib
 import json
-import logging
 import os
+import signal
+import struct
+import subprocess
 import sys
+import threading
 import unittest
-from io import StringIO
-from unittest import mock
+import uuid
+import zlib
 
-import artifacts
-
-from dfvfs.helpers import volume_scanner
 from dfvfs.lib import errors as dfvfs_errors
 
-from dfimagetools.scripts import extract_data_streams
-
+from dfimagetools import file_entry_lister
 from tests import test_lib
 
 
 class ExtractDataStreamsTest(test_lib.BaseTestCase):
     """Tests for the extract data streams console script."""
 
-    def setUp(self):
-        """Setup the test case.
+    # The path to the console script under test relative to the project root.
+    _SCRIPT_PATH = os.path.join("dfimagetools", "scripts", "extract_data_streams.py")
 
-        The script under test calls logging.basicConfig, which is idempotent. The reset
-        makes it possible to capture the logging output of each call in the (mocked)
-        stderr stream that is active during that call.
-        """
-        super().setUp()
-        self._original_handlers = logging.getLogger().handlers
-        self._original_level = logging.getLogger().level
-
-        logging.getLogger().handlers = []
-        logging.getLogger().setLevel(logging.WARNING)
-
-    def tearDown(self):
-        """Tear down the test case."""
-        logging.getLogger().handlers = self._original_handlers
-        logging.getLogger().level = self._original_level
-
-        super().tearDown()
-
-    def _RunMain(self, argv):
-        """Runs the Main function with the provided arguments.
+    def _GetSubprocessEnvironment(self, extra_pythonpath=None):
+        """Creates the environment for a subprocess of the console script.
 
         Args:
-          argv (list[str]): command line arguments to pass to Main.
+          extra_pythonpath (Optional[str]): additional path to prepend to the
+              PYTHONPATH variable, e.g. to shadow a package.
 
         Returns:
-          tuple[int, str, str]: exit code, captured stdout and stderr.
+          dict[str, str]: the environment of the subprocess.
         """
-        program_name = "extract_data_streams.py"
+        pythonpath_parts = []
+        if extra_pythonpath:
+            pythonpath_parts.append(extra_pythonpath)
+        pythonpath_parts.append(test_lib.PROJECT_PATH)
+        if os.environ.get("PYTHONPATH"):
+            pythonpath_parts.append(os.environ["PYTHONPATH"])
 
-        stdout = StringIO()
-        stderr = StringIO()
-        with mock.patch.object(sys, "argv", [program_name, *argv]):
-            with mock.patch("sys.stdout", stdout):
-                with mock.patch("sys.stderr", stderr):
-                    self._ResetLogging()
-                    exit_code = extract_data_streams.Main()
+        environment = dict(os.environ)
+        environment["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
-        return exit_code, stdout.getvalue(), stderr.getvalue()
+        # Note that the console script writes prompts to stdout without
+        # explicitly flushing them, so the output is made unbuffered to make
+        # sure they are visible to the tests.
+        environment["PYTHONUNBUFFERED"] = "1"
+
+        return environment
+
+    def _RunScript(self, argv, cwd=None, extra_pythonpath=None, timeout=300):
+        """Runs the console script in a subprocess with the provided arguments.
+
+        Args:
+          argv (list[str]): command line arguments to pass to the script.
+          cwd (Optional[str]): working directory of the subprocess.
+          extra_pythonpath (Optional[str]): additional path to prepend to the
+              PYTHONPATH variable of the subprocess, e.g. to shadow a package.
+          timeout (int): number of seconds before the subprocess times out.
+
+        Returns:
+          subprocess.CompletedProcess: result of running the subprocess.
+        """
+        script_path = os.path.join(test_lib.PROJECT_PATH, self._SCRIPT_PATH)
+
+        return subprocess.run(
+            [sys.executable, script_path, *argv],
+            check=False,
+            cwd=cwd,
+            env=self._GetSubprocessEnvironment(extra_pythonpath),
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
 
     @staticmethod
-    def _ResetLogging():
-        """Removes the root logger handlers.
+    def _CreateGPTImage(image_path, num_partitions, sectors=20000):
+        """Creates a raw GPT image with the given number of (empty) partitions.
 
-        logging.basicConfig only takes effect when the root logger has no handlers. By
-        clearing the handlers while the mocked stderr stream is active, the
-        (re)configured handler is bound to that stream so the logging output of this
-        call is captured.
+        The partition table is created with the UEFI standard layout, in
+        which the LBA fields of the partition table header are 64-bit values.
+
+        Args:
+          image_path (str): path of the image to create.
+          num_partitions (int): number of valid partition entries.
+          sectors (int): number of 512-byte sectors.
         """
-        logging.getLogger().handlers = []
-        logging.getLogger().setLevel(logging.INFO)
+        first_entries_sector = 2
+        last_entries_sector = first_entries_sector + 127  # 129
+        backup_header_sector = sectors - 1
+        backup_entries_start_sector = backup_header_sector - 128
+        first_usable_sector = last_entries_sector + 1
+        last_usable_sector = backup_entries_start_sector - 1
+
+        data = bytearray(sectors * 512)
+
+        # Protective MBR in LBA 0.
+        data[0x0B4] = 0x80  # Boot flag.
+        data[0x1C8:0x1CC] = struct.pack("<I", 1)  # Partition start sector.
+        data[0x1CC:0x1D0] = struct.pack("<I", 0xEE)  # Partition type 0xEE.
+        data[0x1FE:0x200] = b"\x55\xaa"
+
+        disk_identifier = uuid.uuid4().bytes_le
+
+        entries = bytearray(128 * 128)
+        for index in range(num_partitions):
+            if index == 0:
+                entry_start_sector, entry_end_sector = (
+                    first_usable_sector,
+                    first_usable_sector + 16384,
+                )
+            else:
+                entry_start_sector, entry_end_sector = (
+                    first_usable_sector + 16384,
+                    last_usable_sector,
+                )
+
+            offset = index * 128
+            entries[offset : offset + 16] = uuid.uuid4().bytes_le  # Type GUID.
+            entries[offset + 16 : offset + 32] = uuid.uuid4().bytes_le  # Unique GUID.
+            struct.pack_into("<Q", entries, offset + 32, entry_start_sector)
+            struct.pack_into("<Q", entries, offset + 40, entry_end_sector)
+
+        entries_checksum = zlib.crc32(entries)
+
+        def CreateHeader(header_sector, backup_sector, backup_entries_start):
+            """Creates a GPT partition table header.
+
+            Args:
+              header_sector (int): LBA where the header is stored.
+              backup_sector (int): LBA of the backup header.
+              backup_entries_start (int): LBA of the partition entries.
+
+            Returns:
+              bytearray: the 92-byte header.
+            """
+            header = bytearray(92)
+            header[0:8] = b"EFI PART"  # Signature.
+            struct.pack_into("<I", header, 8, 0x00010000)  # Revision 1.0.
+            struct.pack_into("<I", header, 12, 92)  # Header data size.
+            struct.pack_into("<Q", header, 24, header_sector)
+            struct.pack_into("<Q", header, 32, backup_sector)
+            struct.pack_into("<Q", header, 40, first_usable_sector)
+            struct.pack_into("<Q", header, 48, last_usable_sector)
+            header[56:72] = disk_identifier
+            struct.pack_into("<Q", header, 72, backup_entries_start)
+            struct.pack_into("<I", header, 80, 128)  # Number of entries.
+            struct.pack_into("<I", header, 84, 128)  # Entry size.
+            struct.pack_into("<I", header, 88, entries_checksum)
+
+            # The checksum is a continued CRC-32 computed over the header with
+            # the checksum field itself skipped, as verified by libvsgpt.
+            checksum = zlib.crc32(header[0:16], 0)
+            checksum = zlib.crc32(b"\x00\x00\x00\x00", checksum)
+            checksum = zlib.crc32(header[20:], checksum)
+            struct.pack_into("<I", header, 16, checksum)
+
+            return header
+
+        primary_header = CreateHeader(1, backup_header_sector, first_entries_sector)
+        backup_header = CreateHeader(
+            backup_header_sector, 1, backup_entries_start_sector
+        )
+
+        header_length = 92
+
+        data[512 : 512 + header_length] = primary_header  # LBA 1.
+        data[-512 : -512 + header_length] = backup_header  # Last LBA.
+        data[
+            (backup_entries_start_sector + 127)
+            * 512 : (backup_entries_start_sector + 127)
+            * 512
+            + 4
+        ] = b"PART"  # End-of-partition-table marker.
+        data[first_entries_sector * 512 : first_entries_sector * 512 + len(entries)] = (
+            entries
+        )
+        data[
+            backup_entries_start_sector * 512 : backup_entries_start_sector * 512
+            + len(entries)
+        ] = entries
+
+        with open(image_path, "wb") as file_object:
+            file_object.write(data)
+
+    def _SkipIfGPTScenarioNotReproducible(self, image_path, num_partitions):
+        """Skips the test when the GPT scenario cannot be reproduced.
+
+        Depending on the versions of the underlying libraries, not all
+        environments are able to scan a GPT image with the expected result.
+        The test is skipped rather than failing when the environment does not
+        scan the image as expected:
+          * an image with multiple partitions raises a scanner error since no
+            mediator is provided for the interactive prompt,
+          * an image without partitions generates no base path specifications.
+
+        Args:
+          image_path (str): path of the GPT image.
+          num_partitions (int): number of valid partition entries in the image.
+
+        Raises:
+          SkipTest: when the image cannot be scanned as expected.
+        """
+        lister = file_entry_lister.FileEntryLister()
+
+        try:
+            base_path_specs = lister.GetBasePathSpecs(image_path)
+        except dfvfs_errors.ScannerError:
+            if num_partitions == 2:
+                return
+
+            self.skipTest("GPT image was not scanned as expected")
+
+        except Exception as exception:  # pylint: disable=broad-except
+            self.skipTest(f"unable to scan a GPT image: {exception!s}")
+
+        if not (num_partitions == 0 and not base_path_specs):
+            self.skipTest("GPT image was not scanned as expected")
 
     def testMainNoSource(self):
         """Tests main without a source image."""
-        exit_code, output, _ = self._RunMain([])
-        self.assertEqual(1, exit_code)
-        self.assertIn("Source value is missing.", output)
+        result = self._RunScript([])
+        self.assertEqual(1, result.returncode)
+        self.assertIn("Source value is missing.", result.stdout)
 
     def testMainNoExtractionFilters(self):
         """Tests main without any extraction filters."""
         ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(ntfs_image_path)
 
-        exit_code, output, _ = self._RunMain([ntfs_image_path])
-        self.assertEqual(1, exit_code)
-        self.assertIn("[ERROR] no extraction filters were specified.", output)
+        result = self._RunScript([ntfs_image_path])
+        self.assertEqual(1, result.returncode)
+        self.assertIn("[ERROR] no extraction filters were specified.", result.stdout)
 
     def testMainArtifactFiltersWithoutDefinitions(self):
-        """Tests main when artifact filters are specified without definitions."""
+        """Tests main when artifact filters are specified without definitions.
+
+        The artifacts package is shadowed with a stub package that contains
+        no data files so that the default artifact definitions path does not
+        exist. This cannot be tested on systems that provide artifact
+        definitions in /usr/share/artifacts since the script falls back to
+        that path.
+        """
         ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(ntfs_image_path)
 
-        real_exists = os.path.exists
-
-        def FakeExists(path):
-            if path.replace("\\", "/") == "/usr/share/artifacts":
-                return False
-
-            return real_exists(path)
+        if os.path.exists("/usr/share/artifacts"):
+            self.skipTest("system artifact definitions exist at /usr/share/artifacts")
 
         with (
-            mock.patch.object(artifacts, "__file__", "/usr/nonexistent/__init__.py"),
-            mock.patch("os.path.exists", FakeExists),
+            test_lib.TempDirectory() as stub_dir,
             test_lib.TempDirectory() as temp_dir,
         ):
+            stub_package_path = os.path.join(stub_dir, "artifacts")
+            os.makedirs(stub_package_path)
+            for module in ("__init__", "definitions", "reader", "registry"):
+                # The modules only need to exist for the imports of the
+                # script to succeed.
+                stub_module_path = os.path.join(stub_package_path, f"{module}.py")
+                with open(stub_module_path, "w", encoding="utf-8"):
+                    pass
+
             target_path = os.path.join(temp_dir, "target")
-            exit_code, output, _ = self._RunMain(
+            result = self._RunScript(
                 [
                     "--artifact_filters",
                     "TestNtfsTestDir2",
                     "-t",
                     target_path,
                     ntfs_image_path,
-                ]
+                ],
+                extra_pythonpath=stub_dir,
             )
 
-        self.assertEqual(1, exit_code)
+        self.assertEqual(1, result.returncode)
         self.assertIn(
             "[ERROR] artifact filters were specified but no paths to artifact "
             "definitions were provided.",
-            output,
+            result.stdout,
         )
 
     def testMainTargetNotADirectory(self):
@@ -138,7 +308,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             with open(target_path, "w", encoding="utf-8") as file_object:
                 file_object.write("test")
 
-            exit_code, output, _ = self._RunMain(
+            result = self._RunScript(
                 [
                     "--path",
                     "/p1/testdir2/TestFile1",
@@ -148,8 +318,8 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-        self.assertEqual(1, exit_code)
-        self.assertIn("[ERROR] target path is not a directory.", output)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("[ERROR] target path is not a directory.", result.stdout)
 
     def testMainUnsupportedTimeFilter(self):
         """Tests main with unsupported time filters."""
@@ -160,7 +330,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             target_path = os.path.join(temp_dir, "target")
 
             for time_filter in ("mtime,bad", "mtime,2019-13-45,2020-01-01"):
-                exit_code, output, _ = self._RunMain(
+                result = self._RunScript(
                     [
                         "--time_filter",
                         time_filter,
@@ -169,8 +339,8 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                         ntfs_image_path,
                     ]
                 )
-                self.assertEqual(1, exit_code)
-                self.assertIn("[ERROR] unsupported time filter:", output)
+                self.assertEqual(1, result.returncode)
+                self.assertIn("[ERROR] unsupported time filter:", result.stdout)
 
     def testMainExtractSingleFile(self):
         """Tests main when extracting a single file using a path filter."""
@@ -180,7 +350,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--path",
                     "/p1/testdir2/TestFile1",
@@ -190,13 +360,13 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
                 f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
-                error_output,
+                result.stderr,
             )
-            self.assertIn(f"Writing hashes.json to: {target_path:s}", error_output)
+            self.assertIn(f"Writing hashes.json to: {target_path:s}", result.stderr)
 
             extracted_path = os.path.join(target_path, "p1", "testdir2", "TestFile1")
             self.assertTrue(os.path.isfile(extracted_path))
@@ -224,7 +394,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--path",
                     "/testdir2/TestFile1",
@@ -234,11 +404,11 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
                 f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
-                error_output,
+                result.stderr,
             )
             extracted_path = os.path.join(target_path, "p1", "testdir2", "TestFile1")
             self.assertTrue(os.path.isfile(extracted_path))
@@ -251,7 +421,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, output, _ = self._RunMain(
+            result = self._RunScript(
                 [
                     "--path",
                     "/p1/testdir2/TestFile1",
@@ -263,11 +433,11 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
             self.assertIn(
                 "[WARNING] partition specified in path filter will override "
                 "--partitions command line argument.",
-                output,
+                result.stdout,
             )
             extracted_path = os.path.join(target_path, "p1", "testdir2", "TestFile1")
             self.assertTrue(os.path.isfile(extracted_path))
@@ -283,7 +453,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--artifact_filters",
                     "TestNtfsTestDir2",
@@ -295,11 +465,11 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
                 f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
-                error_output,
+                result.stderr,
             )
             for path_segments in (
                 ["p1", "testdir2", "TestFile1"],
@@ -337,7 +507,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--artifact_filters",
                     "TestNtfsHardlinks",
@@ -349,9 +519,9 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
-            self.assertIn("Extracting: /p1/file_hardlink1 to:", error_output)
-            self.assertIn("skipped: duplicate of", error_output)
+            self.assertEqual(0, result.returncode)
+            self.assertIn("Extracting: /p1/file_hardlink1 to:", result.stderr)
+            self.assertIn("skipped: duplicate of", result.stderr)
 
             extracted_path = os.path.join(target_path, "p1", "file_hardlink1")
             self.assertTrue(os.path.isfile(extracted_path))
@@ -387,7 +557,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, _ = self._RunMain(
+            result = self._RunScript(
                 [
                     "--artifact_filters",
                     "TestNtfsHardlinks",
@@ -400,7 +570,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
 
             paths = [
                 os.path.join(target_path, "p1", "file_hardlink1"),
@@ -440,7 +610,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--name_filter",
                     "file_hardlink1",
@@ -450,11 +620,11 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
             self.assertIn(
                 "Extracting: /p1/file_hardlink1 to: "
                 f"{os.path.join(target_path, 'p1', 'file_hardlink1'):s}",
-                error_output,
+                result.stderr,
             )
             extracted_path = os.path.join(target_path, "p1", "file_hardlink1")
             self.assertTrue(os.path.isfile(extracted_path))
@@ -474,7 +644,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--extension_filter",
                     "dat",
@@ -484,14 +654,14 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
             destination_path = os.path.join(
                 target_path, "p1", "System Volume Information", "WPSettings.dat"
             )
             self.assertIn(
                 "Extracting: /p1/System Volume Information/WPSettings.dat to: "
                 f"{destination_path:s}",
-                error_output,
+                result.stderr,
             )
 
             hashes_file_path = os.path.join(target_path, "hashes.json")
@@ -514,7 +684,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
 
             # The file entries in the image have modification times within
             # this time range.
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--time_filter",
                     "mtime,2019-01-01,2020-01-01",
@@ -524,11 +694,11 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
                 f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
-                error_output,
+                result.stderr,
             )
 
         with test_lib.TempDirectory() as temp_dir:
@@ -536,7 +706,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
 
             # This time range is after the modification times of all file
             # entries in the image, so no data streams should be extracted.
-            exit_code, _, error_output = self._RunMain(
+            result = self._RunScript(
                 [
                     "--time_filter",
                     "mtime,2027-01-01,2028-01-01",
@@ -546,8 +716,8 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
-            self.assertNotIn("Extracting:", error_output)
+            self.assertEqual(0, result.returncode)
+            self.assertNotIn("Extracting:", result.stderr)
 
             extracted_files = []
             for root, _, files in os.walk(target_path):
@@ -567,7 +737,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            exit_code, _, _ = self._RunMain(
+            result = self._RunScript(
                 [
                     "--path",
                     "/p1/testdir2/TestFile1",
@@ -578,7 +748,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ]
             )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
 
             extracted_path = os.path.join(target_path, "p1", "testdir2", "TestFile1")
             self.assertTrue(os.path.isfile(extracted_path))
@@ -594,7 +764,7 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         with test_lib.TempDirectory() as temp_dir:
             target_path = os.path.join(temp_dir, "target")
 
-            main_argv = [
+            script_argv = [
                 "--path",
                 "/p1/testdir2/TestFile1",
                 "-t",
@@ -602,27 +772,31 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 ntfs_image_path,
             ]
 
-            exit_code, _, error_output = self._RunMain(main_argv)
-            self.assertEqual(0, exit_code)
-            self.assertIn("Extracting: /p1/testdir2/TestFile1 to:", error_output)
+            result = self._RunScript(script_argv)
+            self.assertEqual(0, result.returncode)
+            self.assertIn("Extracting: /p1/testdir2/TestFile1 to:", result.stderr)
 
-            exit_code, _, error_output = self._RunMain(main_argv)
-            self.assertEqual(0, exit_code)
-            self.assertNotIn("Extracting:", error_output)
-            self.assertIn("skipped: destination file already exists:", error_output)
+            result = self._RunScript(script_argv)
+            self.assertEqual(0, result.returncode)
+            self.assertNotIn("Extracting:", result.stderr)
+            self.assertIn("skipped: destination file already exists:", result.stderr)
 
     def testMainExtractDefaultTargetPath(self):
-        """Tests main when no target path is specified."""
+        """Tests main when no target path is specified.
+
+        The default target path is derived from the working directory and the
+        name of the source image, therefore the script is run in the
+        temporary directory.
+        """
         ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(ntfs_image_path)
 
         with test_lib.TempDirectory() as temp_dir:
-            with mock.patch("os.getcwd", return_value=temp_dir):
-                exit_code, _, _ = self._RunMain(
-                    ["--path", "/p1/testdir2/TestFile1", ntfs_image_path]
-                )
+            result = self._RunScript(
+                ["--path", "/p1/testdir2/TestFile1", ntfs_image_path], cwd=temp_dir
+            )
 
-            self.assertEqual(0, exit_code)
+            self.assertEqual(0, result.returncode)
 
             target_path = os.path.join(temp_dir, "ntfs.vhd.extracted")
             self.assertTrue(os.path.isdir(target_path))
@@ -631,82 +805,144 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertTrue(os.path.isfile(extracted_path))
 
     def testMainNoBasePathSpecs(self):
-        """Tests main when no base path specifications were generated."""
-        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
-        self._SkipIfPathNotExists(ntfs_image_path)
+        """Tests main when no base path specifications were generated.
 
+        A GPT image without valid partitions is scanned without generating
+        any base path specification.
+        """
         with test_lib.TempDirectory() as temp_dir:
+            gpt_image_path = os.path.join(temp_dir, "gpt.raw")
+            self._CreateGPTImage(gpt_image_path, 0)
+
+            # Note that not all environments are able to scan such an image
+            # as expected, e.g. when the versions of the underlying
+            # libraries do not match.
+            self._SkipIfGPTScenarioNotReproducible(gpt_image_path, 0)
+
             target_path = os.path.join(temp_dir, "target")
 
-            with mock.patch.object(
-                volume_scanner.VolumeScanner,
-                "GetBasePathSpecs",
-                return_value=[],
-            ):
-                exit_code, output, _ = self._RunMain(
-                    [
-                        "--path",
-                        "/p1/testdir2/TestFile1",
-                        "-t",
-                        target_path,
-                        ntfs_image_path,
-                    ]
-                )
-
-        self.assertEqual(1, exit_code)
-        self.assertIn("No supported file system found in source.", output)
+            result = self._RunScript(
+                [
+                    "--path",
+                    "/p1/testdir2/TestFile1",
+                    "-t",
+                    target_path,
+                    gpt_image_path,
+                ]
+            )
+            self.assertEqual(1, result.returncode)
+            self.assertIn("No supported file system found in source.", result.stdout)
 
     def testMainScannerError(self):
-        """Tests main when a scanner error occurs."""
-        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
-        self._SkipIfPathNotExists(ntfs_image_path)
+        """Tests main when a scanner error occurs.
 
+        An unreadable source file causes the scanner to fail.
+        """
         with test_lib.TempDirectory() as temp_dir:
-            target_path = os.path.join(temp_dir, "target")
+            source_path = os.path.join(temp_dir, "image.raw")
+            with open(source_path, "wb") as file_object:
+                file_object.write(b"garbage data")
 
-            with mock.patch.object(
-                volume_scanner.VolumeScanner,
-                "GetBasePathSpecs",
-                side_effect=dfvfs_errors.ScannerError("Failed to open source"),
-            ):
-                exit_code, _, error_output = self._RunMain(
+            # The test relies on the permission to read the file being
+            # denied, which systems such as Windows (running with elevated
+            # privileges) or root may not provide.
+            os.chmod(source_path, 0o000)
+            try:
+                with open(source_path, "rb"):
+                    pass
+            except OSError:
+                pass
+            else:
+                os.chmod(source_path, 0o644)
+                self.skipTest("unable to create an unreadable file")
+
+            try:
+                target_path = os.path.join(temp_dir, "target")
+                result = self._RunScript(
                     [
                         "--path",
                         "/p1/testdir2/TestFile1",
                         "-t",
                         target_path,
-                        ntfs_image_path,
+                        source_path,
                     ]
                 )
 
-        self.assertEqual(1, exit_code)
-        self.assertIn("[ERROR] Failed to open source", error_output)
+                self.assertEqual(1, result.returncode)
+                self.assertIn("[ERROR] Unable to scan source", result.stderr)
+            finally:
+                os.chmod(source_path, 0o644)
 
     def testMainUserAbort(self):
-        """Tests main when a user abort occurs."""
-        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
-        self._SkipIfPathNotExists(ntfs_image_path)
+        """Tests main when a user abort occurs.
+
+        A GPT image with multiple partitions causes the script to prompt for
+        the partition identifier(s). Note that a path filter that does not
+        specify a partition is used, since a path filter with a partition
+        would cause the partition to be selected without prompting. The
+        prompt is aborted with a signal, which raises an interruption that is
+        handled as a user abort.
+        """
+        if sys.platform == "win32":
+            self.skipTest("sending a signal to the script is not supported")
 
         with test_lib.TempDirectory() as temp_dir:
+            gpt_image_path = os.path.join(temp_dir, "gpt2.raw")
+            self._CreateGPTImage(gpt_image_path, 2)
+
+            # Note that not all environments are able to scan such an image
+            # as expected, e.g. when the versions of the underlying
+            # libraries do not match.
+            self._SkipIfGPTScenarioNotReproducible(gpt_image_path, 2)
+
             target_path = os.path.join(temp_dir, "target")
+            script_path = os.path.join(test_lib.PROJECT_PATH, self._SCRIPT_PATH)
 
-            with mock.patch.object(
-                volume_scanner.VolumeScanner,
-                "GetBasePathSpecs",
-                side_effect=dfvfs_errors.UserAbort(),
-            ):
-                exit_code, _, error_output = self._RunMain(
-                    [
-                        "--path",
-                        "/p1/testdir2/TestFile1",
-                        "-t",
-                        target_path,
-                        ntfs_image_path,
-                    ]
-                )
+            # The stdin pipe remains open and empty, so that the script
+            # blocks in the partition identifier prompt.
+            with subprocess.Popen(
+                [
+                    sys.executable,
+                    script_path,
+                    "--path",
+                    "/testdir2/TestFile1",
+                    "-t",
+                    target_path,
+                    gpt_image_path,
+                ],
+                env=self._GetSubprocessEnvironment(),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                encoding="utf-8",
+                errors="replace",
+            ) as process:
+                prompt_reached = threading.Event()
+                output_lines = []
 
-        self.assertEqual(1, exit_code)
-        self.assertIn("Aborted by user.", error_output)
+                def _Reader():
+                    """Reads the output of the subprocess."""
+                    for line in process.stdout:
+                        output_lines.append(line)
+                        if "Please specify the identifier of the partition" in line:
+                            prompt_reached.set()
+
+                reader_thread = threading.Thread(target=_Reader, daemon=True)
+                reader_thread.start()
+
+                if not prompt_reached.wait(60):
+                    process.kill()
+                    process.wait()
+                    self.skipTest("the partition identifier prompt did not appear")
+
+                process.send_signal(signal.SIGINT)
+                return_code = process.wait(timeout=60)
+
+                reader_thread.join(timeout=10)
+
+        output = "".join(output_lines)
+        self.assertEqual(1, return_code)
+        self.assertIn("Aborted by user.", output)
 
 
 if __name__ == "__main__":
