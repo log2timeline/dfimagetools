@@ -12,7 +12,12 @@ inputs:
   * a GPT image without valid partitions generates no base path
     specifications,
   * a GPT image with multiple partitions leads to an interactive prompt at
-    which the script is aborted by a signal.
+    which the script is aborted by a signal,
+  * a symbolic link within the target path that points outside of the
+    target path makes the sanitized destination path escape the target
+    path,
+  * a read-only destination directory makes the write of the destination
+    file fail.
 
 The GPT images are stored as static test data files in the test data
 directory instead of being generated at runtime.
@@ -185,6 +190,40 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         self.assertIn(
             "[ERROR] artifact filters were specified but no paths to artifact "
             "definitions were provided.",
+            result.stdout,
+        )
+
+    def testMainArtifactFilterWithoutFindSpecs(self):
+        """Tests main when an artifact filter generates no find specifications.
+
+        An artifact filter that does not correspond to any known artifact
+        definition generates no find specifications.
+        """
+        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
+        self._SkipIfPathNotExists(ntfs_image_path)
+
+        artifact_definitions = self._GetTestFilePath(["artifacts"])
+        self._SkipIfPathNotExists(artifact_definitions)
+
+        with test_lib.TempDirectory() as temp_dir:
+            target_path = os.path.join(temp_dir, "target")
+
+            result = self._RunScript(
+                [
+                    "--artifact_filters",
+                    "UndefinedArtifactName",
+                    "--artifact_definitions",
+                    artifact_definitions,
+                    "-t",
+                    target_path,
+                    ntfs_image_path,
+                ]
+            )
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn(
+            "[ERROR] an extraction filter was specified but no "
+            "corresponding find specifications were generated.",
             result.stdout,
         )
 
@@ -385,6 +424,118 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 hash_paths,
             )
             self.assertNotEqual(hashes[0]["sha256"], hashes[1]["sha256"])
+
+    def testMainExtractArtifactDefinitionFile(self):
+        """Tests main when artifact definitions are read from a single file."""
+        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
+        self._SkipIfPathNotExists(ntfs_image_path)
+
+        artifact_definitions = self._GetTestFilePath(
+            ["artifacts", "artifacts_ntfs.yaml"]
+        )
+        self._SkipIfPathNotExists(artifact_definitions)
+
+        with test_lib.TempDirectory() as temp_dir:
+            target_path = os.path.join(temp_dir, "target")
+
+            result = self._RunScript(
+                [
+                    "--artifact_filters",
+                    "TestNtfsTestDir2",
+                    "--artifact_definitions",
+                    artifact_definitions,
+                    "-t",
+                    target_path,
+                    ntfs_image_path,
+                ]
+            )
+
+            self.assertEqual(0, result.returncode)
+            self.assertIn(
+                "Extracting: /p1/testdir2/TestFile1 to: "
+                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                result.stderr,
+            )
+            for path_segments in (
+                ["p1", "testdir2", "TestFile1"],
+                ["p1", "testdir2", "testfile1"],
+            ):
+                extracted_path = os.path.join(target_path, *path_segments)
+                self.assertTrue(os.path.isfile(extracted_path))
+
+    def testMainExtractCustomArtifactDefinitions(self):
+        """Tests main when custom artifact definitions are read from a directory."""
+        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
+        self._SkipIfPathNotExists(ntfs_image_path)
+
+        artifact_definitions = self._GetTestFilePath(["artifacts"])
+        self._SkipIfPathNotExists(artifact_definitions)
+
+        with test_lib.TempDirectory() as temp_dir:
+            target_path = os.path.join(temp_dir, "target")
+
+            result = self._RunScript(
+                [
+                    "--artifact_filters",
+                    "TestNtfsTestDir2",
+                    "--custom_artifact_definitions",
+                    artifact_definitions,
+                    "-t",
+                    target_path,
+                    ntfs_image_path,
+                ]
+            )
+
+            self.assertEqual(0, result.returncode)
+            self.assertIn(
+                "Extracting: /p1/testdir2/TestFile1 to: "
+                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                result.stderr,
+            )
+            for path_segments in (
+                ["p1", "testdir2", "TestFile1"],
+                ["p1", "testdir2", "testfile1"],
+            ):
+                extracted_path = os.path.join(target_path, *path_segments)
+                self.assertTrue(os.path.isfile(extracted_path))
+
+    def testMainExtractCustomArtifactDefinitionFile(self):
+        """Tests main when custom artifact definitions are read from a file."""
+        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
+        self._SkipIfPathNotExists(ntfs_image_path)
+
+        artifact_definitions = self._GetTestFilePath(
+            ["artifacts", "artifacts_ntfs.yaml"]
+        )
+        self._SkipIfPathNotExists(artifact_definitions)
+
+        with test_lib.TempDirectory() as temp_dir:
+            target_path = os.path.join(temp_dir, "target")
+
+            result = self._RunScript(
+                [
+                    "--artifact_filters",
+                    "TestNtfsTestDir2",
+                    "--custom_artifact_definitions",
+                    artifact_definitions,
+                    "-t",
+                    target_path,
+                    ntfs_image_path,
+                ]
+            )
+
+            self.assertEqual(0, result.returncode)
+            self.assertIn(
+                "Extracting: /p1/testdir2/TestFile1 to: "
+                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                result.stderr,
+            )
+            for path_segments in (
+                ["p1", "testdir2", "TestFile1"],
+                ["p1", "testdir2", "testfile1"],
+            ):
+                extracted_path = os.path.join(target_path, *path_segments)
+                self.assertTrue(os.path.isfile(extracted_path))
 
     def testMainExtractSkipsDuplicateDataStreams(self):
         """Tests main when duplicate data streams are skipped."""
@@ -670,6 +821,115 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertEqual(0, result.returncode)
             self.assertNotIn("Extracting:", result.stderr)
             self.assertIn("skipped: destination file already exists:", result.stderr)
+
+    def testMainExtractSkipsDestinationOutsideTarget(self):
+        """Tests main when the destination path is not within the target path.
+
+        A subdirectory within the target path that is a symbolic link to a
+        location outside of the target path causes the sanitized destination
+        path to be resolved outside of the target path.
+        """
+        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
+        self._SkipIfPathNotExists(ntfs_image_path)
+
+        with (
+            test_lib.TempDirectory() as temp_dir,
+            test_lib.TempDirectory() as outside_directory,
+        ):
+            target_path = os.path.join(temp_dir, "target")
+            destination_directory = os.path.join(target_path, "p1", "testdir2")
+
+            try:
+                os.makedirs(os.path.dirname(destination_directory))
+                os.symlink(outside_directory, destination_directory)
+            except OSError:
+                self.skipTest("unable to create a symbolic link")
+
+            result = self._RunScript(
+                [
+                    "--path",
+                    "/p1/testdir2/TestFile1",
+                    "-t",
+                    target_path,
+                    ntfs_image_path,
+                ]
+            )
+
+            self.assertEqual(0, result.returncode)
+            self.assertIn("skipped:", result.stderr)
+            self.assertIn("is not within target path", result.stderr)
+            self.assertNotIn("Extracting:", result.stderr)
+
+            self.assertFalse(
+                os.path.isfile(os.path.join(outside_directory, "TestFile1"))
+            )
+
+            hashes_file_path = os.path.join(target_path, "hashes.json")
+            self.assertTrue(os.path.exists(hashes_file_path))
+            with open(hashes_file_path, encoding="utf-8") as file_object:
+                hashes = json.load(file_object)
+
+            self.assertEqual(0, len(hashes))
+
+    def testMainExtractSkipsUnwritableDestination(self):
+        """Tests main when the destination data stream cannot be written.
+
+        The parent directory of the destination file is made read-only so
+        that opening the file for writing fails with a permission error.
+        """
+        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
+        self._SkipIfPathNotExists(ntfs_image_path)
+
+        with test_lib.TempDirectory() as temp_dir:
+            target_path = os.path.join(temp_dir, "target")
+            destination_directory = os.path.join(target_path, "p1", "testdir2")
+            os.makedirs(destination_directory)
+
+            # The test relies on the permission to write to the directory
+            # being denied, which systems such as Windows (running with
+            # elevated privileges) or root may not provide.
+            os.chmod(destination_directory, 0o500)
+            try:
+                with open(os.path.join(destination_directory, "TestFile1"), "wb"):
+                    pass
+            except OSError:
+                pass
+            else:
+                os.chmod(destination_directory, 0o755)
+                self.skipTest("unable to create a read-only directory")
+
+            try:
+                result = self._RunScript(
+                    [
+                        "--path",
+                        "/p1/testdir2/TestFile1",
+                        "-t",
+                        target_path,
+                        ntfs_image_path,
+                    ]
+                )
+
+                self.assertEqual(0, result.returncode)
+                self.assertIn("skipped:", result.stderr)
+                self.assertIn("Permission denied", result.stderr)
+                self.assertFalse(
+                    os.path.isfile(os.path.join(destination_directory, "TestFile1"))
+                )
+
+                # The data stream was still hashed before the write failed,
+                # so the hashes.json file contains its digest.
+                hashes_file_path = os.path.join(target_path, "hashes.json")
+                self.assertTrue(os.path.exists(hashes_file_path))
+                with open(hashes_file_path, encoding="utf-8") as file_object:
+                    hashes = json.load(file_object)
+
+                self.assertEqual(1, len(hashes))
+                self.assertEqual(
+                    [os.path.join("p1", "testdir2", "TestFile1")],
+                    hashes[0]["paths"],
+                )
+            finally:
+                os.chmod(destination_directory, 0o755)
 
     def testMainExtractDefaultTargetPath(self):
         """Tests main when no target path is specified.
