@@ -13,19 +13,19 @@ inputs:
     specifications,
   * a GPT image with multiple partitions leads to an interactive prompt at
     which the script is aborted by a signal.
+
+The GPT images are stored as static test data files in the test data
+directory instead of being generated at runtime.
 """
 
 import hashlib
 import json
 import os
 import signal
-import struct
 import subprocess
 import sys
 import threading
 import unittest
-import uuid
-import zlib
 
 from dfvfs.lib import errors as dfvfs_errors
 
@@ -92,123 +92,13 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             timeout=timeout,
         )
 
-    @staticmethod
-    def _CreateGPTImage(image_path, num_partitions, sectors=20000):
-        """Creates a raw GPT image with the given number of (empty) partitions.
-
-        The partition table is created with the UEFI standard layout, in
-        which the LBA fields of the partition table header are 64-bit values.
-
-        Args:
-          image_path (str): path of the image to create.
-          num_partitions (int): number of valid partition entries.
-          sectors (int): number of 512-byte sectors.
-        """
-        first_entries_sector = 2
-        last_entries_sector = first_entries_sector + 127  # 129
-        backup_header_sector = sectors - 1
-        backup_entries_start_sector = backup_header_sector - 128
-        first_usable_sector = last_entries_sector + 1
-        last_usable_sector = backup_entries_start_sector - 1
-
-        data = bytearray(sectors * 512)
-
-        # Protective MBR in LBA 0.
-        data[0x0B4] = 0x80  # Boot flag.
-        data[0x1C8:0x1CC] = struct.pack("<I", 1)  # Partition start sector.
-        data[0x1CC:0x1D0] = struct.pack("<I", 0xEE)  # Partition type 0xEE.
-        data[0x1FE:0x200] = b"\x55\xaa"
-
-        disk_identifier = uuid.uuid4().bytes_le
-
-        entries = bytearray(128 * 128)
-        for index in range(num_partitions):
-            if index == 0:
-                entry_start_sector, entry_end_sector = (
-                    first_usable_sector,
-                    first_usable_sector + 16384,
-                )
-            else:
-                entry_start_sector, entry_end_sector = (
-                    first_usable_sector + 16384,
-                    last_usable_sector,
-                )
-
-            offset = index * 128
-            entries[offset : offset + 16] = uuid.uuid4().bytes_le  # Type GUID.
-            entries[offset + 16 : offset + 32] = uuid.uuid4().bytes_le  # Unique GUID.
-            struct.pack_into("<Q", entries, offset + 32, entry_start_sector)
-            struct.pack_into("<Q", entries, offset + 40, entry_end_sector)
-
-        entries_checksum = zlib.crc32(entries)
-
-        def CreateHeader(header_sector, backup_sector, backup_entries_start):
-            """Creates a GPT partition table header.
-
-            Args:
-              header_sector (int): LBA where the header is stored.
-              backup_sector (int): LBA of the backup header.
-              backup_entries_start (int): LBA of the partition entries.
-
-            Returns:
-              bytearray: the 92-byte header.
-            """
-            header = bytearray(92)
-            header[0:8] = b"EFI PART"  # Signature.
-            struct.pack_into("<I", header, 8, 0x00010000)  # Revision 1.0.
-            struct.pack_into("<I", header, 12, 92)  # Header data size.
-            struct.pack_into("<Q", header, 24, header_sector)
-            struct.pack_into("<Q", header, 32, backup_sector)
-            struct.pack_into("<Q", header, 40, first_usable_sector)
-            struct.pack_into("<Q", header, 48, last_usable_sector)
-            header[56:72] = disk_identifier
-            struct.pack_into("<Q", header, 72, backup_entries_start)
-            struct.pack_into("<I", header, 80, 128)  # Number of entries.
-            struct.pack_into("<I", header, 84, 128)  # Entry size.
-            struct.pack_into("<I", header, 88, entries_checksum)
-
-            # The checksum is a continued CRC-32 computed over the header with
-            # the checksum field itself skipped, as verified by libvsgpt.
-            checksum = zlib.crc32(header[0:16], 0)
-            checksum = zlib.crc32(b"\x00\x00\x00\x00", checksum)
-            checksum = zlib.crc32(header[20:], checksum)
-            struct.pack_into("<I", header, 16, checksum)
-
-            return header
-
-        primary_header = CreateHeader(1, backup_header_sector, first_entries_sector)
-        backup_header = CreateHeader(
-            backup_header_sector, 1, backup_entries_start_sector
-        )
-
-        header_length = 92
-
-        data[512 : 512 + header_length] = primary_header  # LBA 1.
-        data[-512 : -512 + header_length] = backup_header  # Last LBA.
-        data[
-            (backup_entries_start_sector + 127)
-            * 512 : (backup_entries_start_sector + 127)
-            * 512
-            + 4
-        ] = b"PART"  # End-of-partition-table marker.
-        data[first_entries_sector * 512 : first_entries_sector * 512 + len(entries)] = (
-            entries
-        )
-        data[
-            backup_entries_start_sector * 512 : backup_entries_start_sector * 512
-            + len(entries)
-        ] = entries
-
-        with open(image_path, "wb") as file_object:
-            file_object.write(data)
-
     def _SkipIfGPTScenarioNotReproducible(self, image_path, num_partitions):
         """Skips the test when the GPT scenario cannot be reproduced.
 
-        Depending on the versions of the underlying libraries, not all
-        environments are able to scan a GPT image with the expected result.
-        The test is skipped rather than failing when the environment does not
-        scan the image as expected:
+        The GPT images are static test data files. Depending on the versions
+        of the underlying libraries, not all environments are able to scan a
+        GPT image with the expected result. The test is skipped rather than
+        failing when the environment does not scan the image as expected:
           * an image with multiple partitions raises a scanner error since no
             mediator is provided for the interactive prompt,
           * an image without partitions generates no base path specifications.
@@ -807,13 +697,13 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
     def testMainNoBasePathSpecs(self):
         """Tests main when no base path specifications were generated.
 
-        A GPT image without valid partitions is scanned without generating
-        any base path specification.
+        A GPT image without valid partitions, stored as a static test data
+        file, is scanned without generating any base path specification.
         """
-        with test_lib.TempDirectory() as temp_dir:
-            gpt_image_path = os.path.join(temp_dir, "gpt.raw")
-            self._CreateGPTImage(gpt_image_path, 0)
+        gpt_image_path = self._GetTestFilePath(["gpt.raw"])
+        self._SkipIfPathNotExists(gpt_image_path)
 
+        with test_lib.TempDirectory() as temp_dir:
             # Note that not all environments are able to scan such an image
             # as expected, e.g. when the versions of the underlying
             # libraries do not match.
@@ -876,20 +766,20 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
     def testMainUserAbort(self):
         """Tests main when a user abort occurs.
 
-        A GPT image with multiple partitions causes the script to prompt for
-        the partition identifier(s). Note that a path filter that does not
-        specify a partition is used, since a path filter with a partition
-        would cause the partition to be selected without prompting. The
-        prompt is aborted with a signal, which raises an interruption that is
-        handled as a user abort.
+        A GPT image with multiple partitions, stored as a static test data
+        file, causes the script to prompt for the partition identifier(s).
+        Note that a path filter that does not specify a partition is used,
+        since a path filter with a partition would cause the partition to be
+        selected without prompting. The prompt is aborted with a signal,
+        which raises an interruption that is handled as a user abort.
         """
         if sys.platform == "win32":
             self.skipTest("sending a signal to the script is not supported")
 
-        with test_lib.TempDirectory() as temp_dir:
-            gpt_image_path = os.path.join(temp_dir, "gpt2.raw")
-            self._CreateGPTImage(gpt_image_path, 2)
+        gpt_image_path = self._GetTestFilePath(["gpt2.raw"])
+        self._SkipIfPathNotExists(gpt_image_path)
 
+        with test_lib.TempDirectory() as temp_dir:
             # Note that not all environments are able to scan such an image
             # as expected, e.g. when the versions of the underlying
             # libraries do not match.
