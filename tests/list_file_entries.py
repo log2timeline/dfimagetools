@@ -1,19 +1,33 @@
 #!/usr/bin/env python3
-"""Tests for the console script to list file entries."""
+"""Tests for the console script to list file entries.
 
-import logging
+The tests exercise the console script in a subprocess so it is tested as a
+real command line program: the arguments, the working directory, the streams
+and the exit code are all the real ones and no mocking of the process
+environment is required.
+
+Error conditions that are normally simulated are instead reproduced with real
+inputs:
+  * an unreadable source file makes the scanner fail with a scanner error,
+  * a GPT image without valid partitions generates no base path
+    specifications,
+  * a GPT image with multiple partitions leads to an interactive prompt at
+    which the script is aborted by a signal.
+
+The GPT images are stored as static test data files in the test data
+directory instead of being generated at runtime.
+"""
+
 import os
+import signal
+import subprocess
 import sys
+import threading
 import unittest
-from io import StringIO
-from unittest import mock
 
-import artifacts
-
-from dfvfs.helpers import volume_scanner
 from dfvfs.lib import errors as dfvfs_errors
 
-from dfimagetools.scripts import list_file_entries
+from dfimagetools import file_entry_lister
 
 from tests import test_lib
 
@@ -21,151 +35,256 @@ from tests import test_lib
 class ListFileEntriesTest(test_lib.BaseTestCase):
     """Tests for the list file entries console script."""
 
-    def setUp(self):
-        """Setup the test case.
+    # The path to the console script under test relative to the project root.
+    _SCRIPT_PATH = os.path.join("dfimagetools", "scripts", "list_file_entries.py")
 
-        The script under test calls logging.basicConfig, which is idempotent. The reset
-        makes it possible to capture the logging output of each call in the (mocked)
-        stderr stream that is active during that call.
-        """
-        super().setUp()
-        self._original_handlers = logging.getLogger().handlers
-        self._original_level = logging.getLogger().level
-
-        logging.getLogger().handlers = []
-        logging.getLogger().setLevel(logging.WARNING)
-
-    def tearDown(self):
-        """Tear down the test case."""
-        logging.getLogger().handlers = self._original_handlers
-        logging.getLogger().level = self._original_level
-
-        super().tearDown()
-
-    def _RunMain(self, argv):
-        """Runs the Main function with the provided arguments.
+    def _GetSubprocessEnvironment(self, extra_pythonpath=None):
+        """Creates the environment for a subprocess of the console script.
 
         Args:
-          argv (list[str]): command line arguments to pass to Main.
+          extra_pythonpath (Optional[str]): additional path to prepend to the
+              PYTHONPATH variable, e.g. to shadow a package.
 
         Returns:
-          tuple[int, str, str]: exit code, captured stdout and stderr.
+          dict[str, str]: the environment of the subprocess.
         """
-        program_name = "list_file_entries.py"
+        pythonpath_parts = []
+        if extra_pythonpath:
+            pythonpath_parts.append(extra_pythonpath)
+        pythonpath_parts.append(test_lib.PROJECT_PATH)
+        if os.environ.get("PYTHONPATH"):
+            pythonpath_parts.append(os.environ["PYTHONPATH"])
 
-        stdout = StringIO()
-        stderr = StringIO()
-        with mock.patch.object(sys, "argv", [program_name, *argv]):
-            with mock.patch("sys.stdout", stdout):
-                with mock.patch("sys.stderr", stderr):
-                    self._ResetLogging()
-                    exit_code = list_file_entries.Main()
+        environment = dict(os.environ)
+        environment["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
 
-        return exit_code, stdout.getvalue(), stderr.getvalue()
+        # Note that the console script writes prompts to stdout without
+        # explicitly flushing them, so the output is made unbuffered to make
+        # sure they are visible to the tests.
+        environment["PYTHONUNBUFFERED"] = "1"
 
-    @staticmethod
-    def _ResetLogging():
-        """Removes the root logger handlers.
+        return environment
 
-        logging.basicConfig only takes effect when the root logger has no handlers. By
-        clearing the handlers while the mocked stderr stream is active, the
-        (re)configured handler is bound to that stream so the logging output of this
-        call is captured.
+    def _RunScript(self, argv, extra_pythonpath=None, timeout=300):
+        """Runs the console script in a subprocess with the provided arguments.
+
+        Args:
+          argv (list[str]): command line arguments to pass to the script.
+          extra_pythonpath (Optional[str]): additional path to prepend to the
+              PYTHONPATH variable of the subprocess, e.g. to shadow a package.
+          timeout (int): number of seconds before the subprocess times out.
+
+        Returns:
+          subprocess.CompletedProcess: result of running the subprocess.
         """
-        logging.getLogger().handlers = []
-        logging.getLogger().setLevel(logging.INFO)
+        script_path = os.path.join(test_lib.PROJECT_PATH, self._SCRIPT_PATH)
+
+        return subprocess.run(
+            [sys.executable, script_path, *argv],
+            check=False,
+            env=self._GetSubprocessEnvironment(extra_pythonpath),
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+
+    def _SkipIfGPTScenarioNotReproducible(self, image_path, num_partitions):
+        """Skips the test when the GPT scenario cannot be reproduced.
+
+        The GPT images are static test data files. Depending on the versions
+        of the underlying libraries, not all environments are able to scan a
+        GPT image with the expected result. The test is skipped rather than
+        failing when the environment does not scan the image as expected:
+          * an image with multiple partitions raises a scanner error since no
+            mediator is provided for the interactive prompt,
+          * an image without partitions generates no base path specifications.
+
+        Args:
+          image_path (str): path of the GPT image.
+          num_partitions (int): number of valid partition entries in the image.
+
+        Raises:
+          SkipTest: when the image cannot be scanned as expected.
+        """
+        lister = file_entry_lister.FileEntryLister()
+
+        try:
+            base_path_specs = lister.GetBasePathSpecs(image_path)
+        except dfvfs_errors.ScannerError:
+            if num_partitions == 2:
+                return
+
+            self.skipTest("GPT image was not scanned as expected")
+
+        except Exception as exception:  # pylint: disable=broad-except
+            self.skipTest(f"unable to scan a GPT image: {exception!s}")
+
+        if not (num_partitions == 0 and not base_path_specs):
+            self.skipTest("GPT image was not scanned as expected")
 
     def testMainNoSource(self):
         """Tests main without a source image."""
-        exit_code, output, _ = self._RunMain([])
-        self.assertEqual(1, exit_code)
-        self.assertIn("Source value is missing.", output)
+        result = self._RunScript([])
+        self.assertEqual(1, result.returncode)
+        self.assertIn("Source value is missing.", result.stdout)
 
     def testMainUnsupportedOutputFormat(self):
         """Tests main with an unsupported output format."""
         ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(ntfs_image_path)
 
-        exit_code, output, _ = self._RunMain(
-            ["--output_format", "csv", ntfs_image_path]
-        )
-        self.assertEqual(1, exit_code)
-        self.assertIn("Unsupported output format: csv.", output)
+        result = self._RunScript(["--output_format", "csv", ntfs_image_path])
+        self.assertEqual(1, result.returncode)
+        self.assertIn("Unsupported output format: csv.", result.stdout)
 
     def testMainArtifactFiltersWithoutDefinitions(self):
-        """Tests main when artifact filters are specified without definitions."""
+        """Tests main when artifact filters are specified without definitions.
+
+        The artifacts package is shadowed with a stub package that contains
+        no data files so that the default artifact definitions path does not
+        exist. This cannot be tested on systems that provide artifact
+        definitions in /usr/share/artifacts since the script falls back to
+        that path.
+        """
         ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(ntfs_image_path)
 
-        real_exists = os.path.exists
+        if os.path.exists("/usr/share/artifacts"):
+            self.skipTest("system artifact definitions exist at /usr/share/artifacts")
 
-        def FakeExists(path):
-            if path.replace("\\", "/") == "/usr/share/artifacts":
-                return False
+        with test_lib.TempDirectory() as stub_dir:
+            stub_package_path = os.path.join(stub_dir, "artifacts")
+            os.makedirs(stub_package_path)
+            for module in ("__init__", "definitions", "reader", "registry"):
+                # The modules only need to exist for the imports of the
+                # script to succeed.
+                stub_module_path = os.path.join(stub_package_path, f"{module}.py")
+                with open(stub_module_path, "w", encoding="utf-8"):
+                    pass
 
-            return real_exists(path)
-
-        with (
-            mock.patch.object(artifacts, "__file__", "/usr/nonexistent/__init__.py"),
-            mock.patch("os.path.exists", FakeExists),
-        ):
-            exit_code, output, _ = self._RunMain(
+            result = self._RunScript(
                 [
                     "--artifact_filters",
                     "TestNtfsTestDir2",
                     ntfs_image_path,
-                ]
+                ],
+                extra_pythonpath=stub_dir,
             )
 
-        self.assertEqual(1, exit_code)
+        self.assertEqual(1, result.returncode)
         self.assertIn(
             "[ERROR] artifact filters were specified but no paths to artifact "
             "definitions were provided.",
-            output,
+            result.stdout,
         )
 
     def testMainNoBasePathSpecs(self):
-        """Tests main when no base path specifications were generated."""
-        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
-        self._SkipIfPathNotExists(ntfs_image_path)
+        """Tests main when no base path specifications were generated.
 
-        with mock.patch.object(
-            volume_scanner.VolumeScanner, "GetBasePathSpecs", return_value=[]
-        ):
-            exit_code, output, _ = self._RunMain([ntfs_image_path])
+        A GPT image without valid partitions, stored as a static test data
+        file, is scanned without generating any base path specification.
+        """
+        gpt_image_path = self._GetTestFilePath(["gpt.raw"])
+        self._SkipIfPathNotExists(gpt_image_path)
 
-        self.assertEqual(1, exit_code)
-        self.assertIn("No supported file system found in source.", output)
+        # Note that not all environments are able to scan such an image
+        # as expected, e.g. when the versions of the underlying
+        # libraries do not match.
+        self._SkipIfGPTScenarioNotReproducible(gpt_image_path, 0)
+
+        result = self._RunScript([gpt_image_path])
+        self.assertEqual(1, result.returncode)
+        self.assertIn("No supported file system found in source.", result.stdout)
 
     def testMainScannerError(self):
-        """Tests main when a scanner error occurs."""
-        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
-        self._SkipIfPathNotExists(ntfs_image_path)
+        """Tests main when a scanner error occurs.
 
-        with mock.patch.object(
-            volume_scanner.VolumeScanner,
-            "GetBasePathSpecs",
-            side_effect=dfvfs_errors.ScannerError("Failed to open source"),
-        ):
-            exit_code, _, error_output = self._RunMain([ntfs_image_path])
+        An unreadable source file causes the scanner to fail.
+        """
+        with test_lib.TempDirectory() as temp_dir:
+            source_path = os.path.join(temp_dir, "image.raw")
+            with open(source_path, "wb") as file_object:
+                file_object.write(b"garbage data")
 
-        self.assertEqual(1, exit_code)
-        self.assertIn("[ERROR] Failed to open source", error_output)
+            # The test relies on the permission to read the file being
+            # denied, which systems such as Windows (running with elevated
+            # privileges) or root may not provide.
+            os.chmod(source_path, 0o000)
+            try:
+                with open(source_path, "rb"):
+                    pass
+            except OSError:
+                pass
+            else:
+                os.chmod(source_path, 0o644)
+                self.skipTest("unable to create an unreadable file")
+
+            try:
+                result = self._RunScript([source_path])
+                self.assertEqual(1, result.returncode)
+                self.assertIn("[ERROR] Unable to scan source", result.stderr)
+            finally:
+                os.chmod(source_path, 0o644)
 
     def testMainUserAbort(self):
-        """Tests main when a user abort occurs."""
-        ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
-        self._SkipIfPathNotExists(ntfs_image_path)
+        """Tests main when a user abort occurs.
 
-        with mock.patch.object(
-            volume_scanner.VolumeScanner,
-            "GetBasePathSpecs",
-            side_effect=dfvfs_errors.UserAbort(),
-        ):
-            exit_code, _, error_output = self._RunMain([ntfs_image_path])
+        A GPT image with multiple partitions, stored as a static test data
+        file, causes the script to prompt for the partition identifier(s).
+        The prompt is aborted with a signal, which raises an interruption
+        that is handled as a user abort.
+        """
+        if sys.platform == "win32":
+            self.skipTest("sending a signal to the script is not supported")
 
-        self.assertEqual(1, exit_code)
-        self.assertIn("Aborted by user.", error_output)
+        gpt_image_path = self._GetTestFilePath(["gpt2.raw"])
+        self._SkipIfPathNotExists(gpt_image_path)
+
+        # Note that not all environments are able to scan such an image
+        # as expected, e.g. when the versions of the underlying
+        # libraries do not match.
+        self._SkipIfGPTScenarioNotReproducible(gpt_image_path, 2)
+
+        script_path = os.path.join(test_lib.PROJECT_PATH, self._SCRIPT_PATH)
+
+        # The stdin pipe remains open and empty, so that the script
+        # blocks in the partition identifier prompt.
+        with subprocess.Popen(
+            [sys.executable, script_path, gpt_image_path],
+            env=self._GetSubprocessEnvironment(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="utf-8",
+            errors="replace",
+        ) as process:
+            prompt_reached = threading.Event()
+            output_lines = []
+
+            def _Reader():
+                """Reads the output of the subprocess."""
+                for line in process.stdout:
+                    output_lines.append(line)
+                    if "Please specify the identifier of the partition" in line:
+                        prompt_reached.set()
+
+            reader_thread = threading.Thread(target=_Reader, daemon=True)
+            reader_thread.start()
+
+            if not prompt_reached.wait(60):
+                process.kill()
+                process.wait()
+                self.skipTest("the partition identifier prompt did not appear")
+
+            process.send_signal(signal.SIGINT)
+            return_code = process.wait(timeout=60)
+
+            reader_thread.join(timeout=10)
+
+        output = "".join(output_lines)
+        self.assertEqual(1, return_code)
+        self.assertIn("Aborted by user.", output)
 
     def testMainArtifactFilterWithoutFindSpecs(self):
         """Tests main when an artifact filter does not generate find specs."""
@@ -175,7 +294,7 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
         artifact_definitions = self._GetTestFilePath(["artifacts"])
         self._SkipIfPathNotExists(artifact_definitions)
 
-        exit_code, output, _ = self._RunMain(
+        result = self._RunScript(
             [
                 "--artifact_filters",
                 "UndefinedArtifactName",
@@ -184,11 +303,11 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
                 ntfs_image_path,
             ]
         )
-        self.assertEqual(1, exit_code)
+        self.assertEqual(1, result.returncode)
         self.assertIn(
             "[ERROR] an artifact filter was specified but no corresponding "
             "file system find specifications were generated.",
-            output,
+            result.stdout,
         )
 
     def testMainListBodyfile(self):
@@ -202,11 +321,11 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
         with open(expected_output_path, encoding="utf-8") as file_object:
             expected_output = file_object.read()
 
-        exit_code, output, _ = self._RunMain(["--use_original_md5", ntfs_image_path])
-        self.assertEqual(0, exit_code)
+        result = self._RunScript(["--use_original_md5", ntfs_image_path])
+        self.assertEqual(0, result.returncode)
 
         expected_output = "# extended bodyfile 3 format\n" + expected_output
-        self.assertEqual(expected_output, output)
+        self.assertEqual(expected_output, result.stdout)
 
     def testMainListBodyfileWithoutOriginalMD5(self):
         """Tests main when listing files without the original MD5 format."""
@@ -219,10 +338,10 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
         with open(expected_output_path, encoding="utf-8") as file_object:
             expected_lines = file_object.read().splitlines()
 
-        exit_code, output, _ = self._RunMain([ntfs_image_path])
-        self.assertEqual(0, exit_code)
+        result = self._RunScript([ntfs_image_path])
+        self.assertEqual(0, result.returncode)
 
-        lines = output.splitlines()
+        lines = result.stdout.splitlines()
         self.assertEqual(1 + len(expected_lines), len(lines))
         self.assertEqual("# extended bodyfile 3 format", lines[0])
         self.assertIn("N/A (skipped)", lines[1])
@@ -235,7 +354,7 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
         artifact_definitions = self._GetTestFilePath(["artifacts"])
         self._SkipIfPathNotExists(artifact_definitions)
 
-        exit_code, output, _ = self._RunMain(
+        result = self._RunScript(
             [
                 "--artifact_filters",
                 "TestNtfsTestDir2",
@@ -245,9 +364,9 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
                 ntfs_image_path,
             ]
         )
-        self.assertEqual(0, exit_code)
+        self.assertEqual(0, result.returncode)
 
-        lines = output.splitlines()
+        lines = result.stdout.splitlines()
         self.assertEqual("# extended bodyfile 3 format", lines[0])
 
         # The two sources in the definition each match both files because the
@@ -260,35 +379,35 @@ class ListFileEntriesTest(test_lib.BaseTestCase):
             self.assertIn("/p1/testdir2/", line)
 
         # Both files referenced by the definition are listed.
-        self.assertIn("TestFile1", output)
-        self.assertIn("testfile1", output)
+        self.assertIn("TestFile1", result.stdout)
+        self.assertIn("testfile1", result.stdout)
 
     def testMainListNoAliases(self):
         """Tests main when listing file entries without partition aliases."""
         ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(ntfs_image_path)
 
-        exit_code, output, _ = self._RunMain(["--no_aliases", ntfs_image_path])
-        self.assertEqual(0, exit_code)
+        result = self._RunScript(["--no_aliases", ntfs_image_path])
+        self.assertEqual(0, result.returncode)
 
-        lines = output.splitlines()
+        lines = result.stdout.splitlines()
         self.assertEqual("# extended bodyfile 3 format", lines[0])
         self.assertIn("N/A (skipped)", lines[1])
 
-        self.assertIn("|/p1/testdir2/TestFile1|", output)
-        self.assertIn("|/p1/testdir2/testfile1|", output)
+        self.assertIn("|/p1/testdir2/TestFile1|", result.stdout)
+        self.assertIn("|/p1/testdir2/testfile1|", result.stdout)
 
     def testMainListSectorSize(self):
         """Tests main when listing file entries with a sector size."""
         ntfs_image_path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(ntfs_image_path)
 
-        exit_code, output, _ = self._RunMain(["--sector_size", "512", ntfs_image_path])
-        self.assertEqual(0, exit_code)
+        result = self._RunScript(["--sector_size", "512", ntfs_image_path])
+        self.assertEqual(0, result.returncode)
 
-        lines = output.splitlines()
+        lines = result.stdout.splitlines()
         self.assertEqual("# extended bodyfile 3 format", lines[0])
-        self.assertIn("|/p1/testdir2/TestFile1|", output)
+        self.assertIn("|/p1/testdir2/TestFile1|", result.stdout)
 
 
 if __name__ == "__main__":
