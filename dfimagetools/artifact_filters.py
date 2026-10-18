@@ -80,11 +80,7 @@ class ArtifactDefinitionFiltersGenerator:
                             user_accounts=user_accounts,
                         )
 
-                elif source_type in (
-                    artifacts_definitions.TYPE_INDICATOR_DIRECTORY,
-                    artifacts_definitions.TYPE_INDICATOR_FILE,
-                    artifacts_definitions.TYPE_INDICATOR_PATH,
-                ):
+                else:
                     for source_path in set(source.paths):
                         yield from self._BuildFindSpecsFromFileSourcePath(
                             source_path,
