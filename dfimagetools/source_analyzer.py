@@ -3,6 +3,7 @@
 
 import locale
 import os
+import sys
 
 from dfvfs.credentials import manager as credentials_manager
 from dfvfs.helpers import source_scanner as dfvfs_source_scanner
@@ -96,6 +97,25 @@ class SourceAnalyzer:
         if self._auto_recurse:
             yield scan_context
 
+    def _OpenFileSystem(self, path_spec_object):
+        """Opens the file system of a path specification.
+
+        Args:
+          path_spec_object (dfvfs.PathSpec): the path specification.
+
+        Returns:
+          dfvfs.FileSystem: the file system.
+        """
+        return resolver.Resolver.OpenFileSystem(path_spec_object)
+
+    def _OpenOutput(self):
+        """Opens the output stream.
+
+        Returns:
+          TextIOWrapper: the output stream, by default standard output.
+        """
+        return sys.stdout
+
     def WriteScanNode(self, scan_context, scan_node, indentation=""):
         """Writes the source scanner node to stdout.
 
@@ -133,7 +153,7 @@ class SourceAnalyzer:
 
         type_indicator = scan_node.path_spec.type_indicator
         if type_indicator == dfvfs_definitions.TYPE_INDICATOR_TSK:
-            file_system = resolver.Resolver.OpenFileSystem(scan_node.path_spec)
+            file_system = self._OpenFileSystem(scan_node.path_spec)
             if file_system.IsExt():
                 flags.append(" [ext2/ext3/ext4]")
             elif file_system.IsFat():
@@ -144,7 +164,8 @@ class SourceAnalyzer:
                 flags.append(" [NTFS]")
 
         flags = " ".join(flags)
-        print(f"{indentation:s}{type_indicator:s}: {values:s}{flags:s}")
+        output_stream = self._OpenOutput()
+        output_stream.write(f"{indentation:s}{type_indicator:s}: {values:s}{flags:s}\n")
 
         indentation = f"  {indentation:s}"
         for sub_scan_node in scan_node.sub_nodes:

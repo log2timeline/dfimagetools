@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
 """Tests for the console script to extract data streams.
 
-The tests exercise the console script in a subprocess so it is tested as a
-real command line program: the arguments, the working directory, the streams
-and the exit code are all the real ones and no mocking of the process
-environment is required.
+The tests exercise the console script in a subprocess so it is tested as a real command
+line program: the arguments, the working directory, the streams and the exit code are
+all the real ones and no mocking of the process environment is required.
 
-Error conditions that are normally simulated are instead reproduced with real
-inputs:
-  * an unreadable source file makes the scanner fail with a scanner error,
-  * a GPT image without valid partitions generates no base path
-    specifications,
-  * a GPT image with multiple partitions leads to an interactive prompt at
-    which the script is aborted by a signal,
-  * a symbolic link within the target path that points outside of the
-    target path makes the sanitized destination path escape the target
-    path,
-  * a read-only destination directory makes the write of the destination
-    file fail.
+Error conditions that are normally simulated are instead reproduced with real inputs:
 
-The GPT images are stored as static test data files in the test data
-directory instead of being generated at runtime.
+* an unreadable source file makes the scanner fail with a scanner error,
+* a GPT image without valid partitions generates no base path specifications,
+* a GPT image with multiple partitions leads to an interactive prompt at which the
+  script is aborted by a signal,
+* a symbolic link within the target path that points outside of the target path makes
+  the sanitized destination path escape the target path,
+* a read-only destination directory makes the write of the destination file fail.
+
+The GPT images are stored as static test data files in the test data directory instead
+of being generated at runtime.
 """
 
 import hashlib
@@ -104,9 +100,10 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
         of the underlying libraries, not all environments are able to scan a
         GPT image with the expected result. The test is skipped rather than
         failing when the environment does not scan the image as expected:
-          * an image with multiple partitions raises a scanner error since no
-            mediator is provided for the interactive prompt,
-          * an image without partitions generates no base path specifications.
+
+        * an image with multiple partitions raises a scanner error since no
+          mediator is provided for the interactive prompt,
+        * an image without partitions generates no base path specifications.
 
         Args:
           image_path (str): path of the GPT image.
@@ -288,7 +285,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
                 "Extracting: /p1/testdir2/TestFile1 to: "
@@ -361,11 +357,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
-                "[WARNING] partition specified in path filter will override "
-                "--partitions command line argument.",
+                (
+                    "[WARNING] partition specified in path filter will override "
+                    "--partitions command line argument."
+                ),
                 result.stdout,
             )
             extracted_path = os.path.join(target_path, "p1", "testdir2", "TestFile1")
@@ -393,11 +390,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
-                "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                (
+                    "Extracting: /p1/testdir2/TestFile1 to: "
+                    f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}"
+                ),
                 result.stderr,
             )
             for path_segments in (
@@ -449,11 +447,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
-                "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                (
+                    "Extracting: /p1/testdir2/TestFile1 to: "
+                    f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}"
+                ),
                 result.stderr,
             )
             for path_segments in (
@@ -485,11 +484,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
-                "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                (
+                    "Extracting: /p1/testdir2/TestFile1 to: "
+                    f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}"
+                ),
                 result.stderr,
             )
             for path_segments in (
@@ -523,11 +523,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
-                "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                (
+                    "Extracting: /p1/testdir2/TestFile1 to: "
+                    f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}"
+                ),
                 result.stderr,
             )
             for path_segments in (
@@ -559,7 +560,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn("Extracting: /p1/file_hardlink1 to:", result.stderr)
             self.assertIn("skipped: duplicate of", result.stderr)
@@ -610,7 +610,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
 
             paths = [
@@ -660,11 +659,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
-                "Extracting: /p1/file_hardlink1 to: "
-                f"{os.path.join(target_path, 'p1', 'file_hardlink1'):s}",
+                (
+                    "Extracting: /p1/file_hardlink1 to: "
+                    f"{os.path.join(target_path, 'p1', 'file_hardlink1'):s}"
+                ),
                 result.stderr,
             )
             extracted_path = os.path.join(target_path, "p1", "file_hardlink1")
@@ -694,17 +694,17 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             destination_path = os.path.join(
                 target_path, "p1", "System Volume Information", "WPSettings.dat"
             )
             self.assertIn(
-                "Extracting: /p1/System Volume Information/WPSettings.dat to: "
-                f"{destination_path:s}",
+                (
+                    "Extracting: /p1/System Volume Information/WPSettings.dat to: "
+                    f"{destination_path:s}"
+                ),
                 result.stderr,
             )
-
             hashes_file_path = os.path.join(target_path, "hashes.json")
             with open(hashes_file_path, encoding="utf-8") as file_object:
                 hashes = json.load(file_object)
@@ -734,11 +734,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn(
-                "Extracting: /p1/testdir2/TestFile1 to: "
-                f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}",
+                (
+                    "Extracting: /p1/testdir2/TestFile1 to: "
+                    f"{os.path.join(target_path, 'p1', 'testdir2', 'TestFile1'):s}"
+                ),
                 result.stderr,
             )
 
@@ -756,7 +757,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertNotIn("Extracting:", result.stderr)
 
@@ -788,7 +788,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
 
             extracted_path = os.path.join(target_path, "p1", "testdir2", "TestFile1")
@@ -812,7 +811,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                 target_path,
                 ntfs_image_path,
             ]
-
             result = self._RunScript(script_argv)
             self.assertEqual(0, result.returncode)
             self.assertIn("Extracting: /p1/testdir2/TestFile1 to:", result.stderr)
@@ -854,7 +852,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                     ntfs_image_path,
                 ]
             )
-
             self.assertEqual(0, result.returncode)
             self.assertIn("skipped:", result.stderr)
             self.assertIn("is not within target path", result.stderr)
@@ -863,7 +860,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             self.assertFalse(
                 os.path.isfile(os.path.join(outside_directory, "TestFile1"))
             )
-
             hashes_file_path = os.path.join(target_path, "hashes.json")
             self.assertTrue(os.path.exists(hashes_file_path))
             with open(hashes_file_path, encoding="utf-8") as file_object:
@@ -908,14 +904,12 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                         ntfs_image_path,
                     ]
                 )
-
                 self.assertEqual(0, result.returncode)
                 self.assertIn("skipped:", result.stderr)
                 self.assertIn("Permission denied", result.stderr)
                 self.assertFalse(
                     os.path.isfile(os.path.join(destination_directory, "TestFile1"))
                 )
-
                 # The data stream was still hashed before the write failed,
                 # so the hashes.json file contains its digest.
                 hashes_file_path = os.path.join(target_path, "hashes.json")
@@ -945,7 +939,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
             result = self._RunScript(
                 ["--path", "/p1/testdir2/TestFile1", ntfs_image_path], cwd=temp_dir
             )
-
             self.assertEqual(0, result.returncode)
 
             target_path = os.path.join(temp_dir, "ntfs.vhd.extracted")
@@ -1017,7 +1010,6 @@ class ExtractDataStreamsTest(test_lib.BaseTestCase):
                         source_path,
                     ]
                 )
-
                 self.assertEqual(1, result.returncode)
                 self.assertIn("[ERROR] Unable to scan source", result.stderr)
             finally:
