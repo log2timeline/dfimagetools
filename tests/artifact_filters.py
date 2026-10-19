@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Tests for the helper for filtering based on artifact definitions."""
 
-import contextlib
 import logging
 import unittest
 
@@ -10,43 +9,33 @@ from artifacts import definitions as artifacts_definitions
 from artifacts import reader as artifacts_reader
 from artifacts import registry as artifacts_registry
 
-from dfvfs.helpers import file_system_searcher as dfvfs_file_system_searcher
-
 from dfimagetools import artifact_filters
 from dfimagetools import resources
 
 from tests import test_lib
 
 
-def _RaisingFindSpec(*args, **kwargs):
-    """Stand-in find specification builder that fails to build.
+class _FailingFindSpecGenerator(artifact_filters.ArtifactDefinitionFiltersGenerator):
+    """Generator whose find specification building fails.
 
-    Args:
-      *args: positional arguments, unused.
-      **kwargs: keyword arguments, unused.
-
-    Raises:
-      ValueError: always, simulating an unable to build find specification.
+    A test double of ArtifactDefinitionFiltersGenerator that simulates
+    an unable to build find specification instead of using the real
+    dfVFS find specification builder.
     """
-    raise ValueError("Test find specification build error")
 
+    # pylint: disable=invalid-overridden-method
 
-@contextlib.contextmanager
-def _SwapFindSpec(find_spec):
-    """Temporarily swaps the find specification used by the filters generator.
+    def _BuildFindSpec(self, location_glob, location_separator):
+        """Builds a find specification for a location glob.
 
-    Args:
-      find_spec (callable): stand-in for the find specification function.
+        Args:
+          location_glob (str): location glob, unused.
+          location_separator (str): location segment separator, unused.
 
-    Yields:
-      None: context.
-    """
-    original_find_spec = dfvfs_file_system_searcher.FindSpec
-    dfvfs_file_system_searcher.FindSpec = find_spec
-    try:
-        yield
-    finally:
-        dfvfs_file_system_searcher.FindSpec = original_find_spec
+        Raises:
+          ValueError: always, simulating an unable to build find specification.
+        """
+        raise ValueError("Test find specification build error")
 
 
 class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
@@ -354,12 +343,9 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
         """Tests _BuildFindSpecsFromFileSourcePath when building fails."""
         registry = artifacts_registry.ArtifactDefinitionsRegistry()
 
-        test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(registry)
+        test_generator = _FailingFindSpecGenerator(registry)
 
-        with (
-            _SwapFindSpec(_RaisingFindSpec),
-            self.assertLogs(level=logging.ERROR) as log_capture,
-        ):
+        with self.assertLogs(level=logging.ERROR) as log_capture:
             find_specs = list(
                 test_generator._BuildFindSpecsFromFileSourcePath(
                     "\\test_data\\*.evtx", "\\"

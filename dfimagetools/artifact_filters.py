@@ -89,6 +89,22 @@ class ArtifactDefinitionFiltersGenerator:
                             user_accounts=user_accounts,
                         )
 
+    def _BuildFindSpec(self, location_glob, location_separator):
+        """Builds a find specification for a location glob.
+
+        Args:
+          location_glob (str): location glob.
+          location_separator (str): location segment separator.
+
+        Returns:
+          dfvfs.FindSpec: file system (dfVFS) find specification.
+        """
+        return dfvfs_file_system_searcher.FindSpec(
+            case_sensitive=False,
+            location_glob=location_glob,
+            location_separator=location_separator,
+        )
+
     def _BuildFindSpecsFromFileSourcePath(
         self,
         source_path,
@@ -123,11 +139,7 @@ class ArtifactDefinitionFiltersGenerator:
                     continue
 
                 try:
-                    find_spec = dfvfs_file_system_searcher.FindSpec(
-                        case_sensitive=False,
-                        location_glob=path,
-                        location_separator=path_separator,
-                    )
+                    find_spec = self._BuildFindSpec(path, path_separator)
                 except ValueError as exception:
                     logging.error(
                         (
