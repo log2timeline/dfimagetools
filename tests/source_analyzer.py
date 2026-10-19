@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Tests for the helper to volumes and file systems in a storage media image."""
 
-import contextlib
 import io
 import unittest
 
@@ -9,7 +8,6 @@ from dfvfs.credentials import luksde_credentials
 from dfvfs.helpers import source_scanner as dfvfs_source_scanner
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.path import factory as path_spec_factory
-from dfvfs.resolver import resolver as dfvfs_resolver
 
 from dfimagetools import source_analyzer
 
@@ -91,37 +89,50 @@ class TestFileSystem:
         return self.file_system_type == "IsNTFS"
 
 
-@contextlib.contextmanager
-def _SwapOpenFileSystem(file_system):
-    """Temporarily swaps the OpenFileSystem function of the resolver.
+class TestSourceAnalyzer(source_analyzer.SourceAnalyzer):
+    """Source analyzer for testing.
 
-    Args:
-      file_system (TestFileSystem): file system to return.
+    The analyzer writes scan nodes to a stream instead of standard output,
+    and can open a test file system instead of a real file system.
 
-    Yields:
-      None: context.
+    Attributes:
+      file_system (TestFileSystem): file system returned for path
+          specifications with a TSK type, or None if not defined.
+      output_stream (TextIOWrapper): stream to write scan nodes to.
     """
-    original_open_file_system = dfvfs_resolver.Resolver.OpenFileSystem
 
-    def SwapOpenFileSystem(  # pylint: disable=unused-argument
-        path_spec_object, resolver_context=None
-    ):
-        """Swaps the file system of the resolver.
+    def __init__(self, output_stream, file_system=None, mediator=None):
+        """Initializes the test source analyzer.
+
+        Args:
+          output_stream (TextIOWrapper): stream to write scan nodes to.
+          file_system (Optional[TestFileSystem]): file system to return for
+              path specifications with a TSK type.
+          mediator (Optional[VolumeScannerMediator]): a volume scanner
+              mediator.
+        """
+        super().__init__(mediator=mediator)
+        self._file_system = file_system
+        self.output_stream = output_stream
+
+    def _OpenFileSystem(self, path_spec_object):  # pylint: disable=unused-argument
+        """Opens the file system of a path specification.
 
         Args:
           path_spec_object (dfvfs.PathSpec): the path specification, unused.
-          resolver_context (Optional[dfvfs.Context]): resolver context, unused.
 
         Returns:
           TestFileSystem: the file system.
         """
-        return file_system
+        return self._file_system
 
-    dfvfs_resolver.Resolver.OpenFileSystem = SwapOpenFileSystem
-    try:
-        yield
-    finally:
-        dfvfs_resolver.Resolver.OpenFileSystem = original_open_file_system
+    def _OpenOutput(self):
+        """Opens the output stream.
+
+        Returns:
+          TextIOWrapper: the output stream.
+        """
+        return self.output_stream
 
 
 class SourceAnalyzerTest(test_lib.BaseTestCase):
@@ -222,12 +233,11 @@ class SourceAnalyzerTest(test_lib.BaseTestCase):
         path = self._GetTestFilePath(["ntfs.vhd"])
         self._SkipIfPathNotExists(path)
 
-        test_analyzer = source_analyzer.SourceAnalyzer()
+        output_file_object = io.StringIO()
+        test_analyzer = TestSourceAnalyzer(output_file_object)
         scan_context = list(test_analyzer.Analyze(path))[0]
 
-        output_file_object = io.StringIO()
-        with contextlib.redirect_stdout(output_file_object):
-            test_analyzer.WriteScanNode(scan_context, scan_context.GetRootScanNode())
+        test_analyzer.WriteScanNode(scan_context, scan_context.GetRootScanNode())
 
         expected_output = (
             f"OS: location: {path:s}\n"
@@ -244,12 +254,11 @@ class SourceAnalyzerTest(test_lib.BaseTestCase):
 
     def testWriteScanNodeWithoutScanNode(self):
         """Tests the WriteScanNode function without a scan node."""
-        test_analyzer = source_analyzer.SourceAnalyzer()
+        output_file_object = io.StringIO()
+        test_analyzer = TestSourceAnalyzer(output_file_object)
         scan_context = dfvfs_source_scanner.SourceScannerContext()
 
-        output_file_object = io.StringIO()
-        with contextlib.redirect_stdout(output_file_object):
-            test_analyzer.WriteScanNode(scan_context, None)
+        test_analyzer.WriteScanNode(scan_context, None)
 
         self.assertEqual("", output_file_object.getvalue())
 
@@ -258,22 +267,22 @@ class SourceAnalyzerTest(test_lib.BaseTestCase):
         path = self._GetTestFilePath(["luks1.raw"])
         self._SkipIfPathNotExists(path)
 
+        output_file_object = io.StringIO()
         test_mediator = TestVolumeScannerMediator()
-        test_analyzer = source_analyzer.SourceAnalyzer(mediator=test_mediator)
+        test_analyzer = TestSourceAnalyzer(output_file_object, mediator=test_mediator)
         scan_context = list(test_analyzer.Analyze(path))[0]
 
         self.assertEqual(len(scan_context.locked_scan_nodes), 1)
         scan_node = scan_context.locked_scan_nodes[0]
 
-        output_file_object = io.StringIO()
-        with contextlib.redirect_stdout(output_file_object):
-            test_analyzer.WriteScanNode(scan_context, scan_node)
+        test_analyzer.WriteScanNode(scan_context, scan_node)
 
         self.assertEqual("LUKSDE:  [LOCKED]\n", output_file_object.getvalue())
 
     def testWriteScanNodeWithVShadowScanNode(self):
         """Tests the WriteScanNode function with a VShadow scan node."""
-        test_analyzer = source_analyzer.SourceAnalyzer()
+        output_file_object = io.StringIO()
+        test_analyzer = TestSourceAnalyzer(output_file_object)
         scan_context = dfvfs_source_scanner.SourceScannerContext()
 
         root_path_spec = path_spec_factory.Factory.NewPathSpec(
@@ -287,9 +296,7 @@ class SourceAnalyzerTest(test_lib.BaseTestCase):
         )
         scan_node = dfvfs_source_scanner.SourceScanNode(vshadow_path_spec)
 
-        output_file_object = io.StringIO()
-        with contextlib.redirect_stdout(output_file_object):
-            test_analyzer.WriteScanNode(scan_context, scan_node)
+        test_analyzer.WriteScanNode(scan_context, scan_node)
 
         self.assertEqual(
             "VSHADOW: 3, location: VshadowCopy\n",
@@ -298,7 +305,6 @@ class SourceAnalyzerTest(test_lib.BaseTestCase):
 
     def testWriteScanNodeWithFileSystemScanNode(self):
         """Tests the WriteScanNode function with a TSK file system scan node."""
-        test_analyzer = source_analyzer.SourceAnalyzer()
         scan_context = dfvfs_source_scanner.SourceScannerContext()
 
         root_path_spec = path_spec_factory.Factory.NewPathSpec(
@@ -320,10 +326,11 @@ class SourceAnalyzerTest(test_lib.BaseTestCase):
             ("", ""),
         )
         for is_method, expected_flag in expected_flags:
-            with _SwapOpenFileSystem(TestFileSystem(is_method)):
-                output_file_object = io.StringIO()
-                with contextlib.redirect_stdout(output_file_object):
-                    test_analyzer.WriteScanNode(scan_context, scan_node)
+            output_file_object = io.StringIO()
+            test_analyzer = TestSourceAnalyzer(
+                output_file_object, file_system=TestFileSystem(is_method)
+            )
+            test_analyzer.WriteScanNode(scan_context, scan_node)
 
             self.assertIn(
                 f"TSK: location: /testfile{expected_flag:s}",
