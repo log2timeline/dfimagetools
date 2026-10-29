@@ -61,6 +61,14 @@ dfimagetools.environment\_variables module
    :show-inheritance:
    :undoc-members:
 
+dfimagetools.file\_entry\_filters module
+----------------------------------------
+
+.. automodule:: dfimagetools.file_entry_filters
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 dfimagetools.file\_entry\_lister module
 ---------------------------------------
 
