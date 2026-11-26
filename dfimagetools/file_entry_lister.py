@@ -94,6 +94,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
         if type_indicator in (
             dfvfs_definitions.TYPE_INDICATOR_APM,
             dfvfs_definitions.TYPE_INDICATOR_TSK_PARTITION,
+            dfvfs_definitions.TYPE_INDICATOR_VSHADOW,
         ):
             path_segments.append(base_path_spec.location[1:])
             return path_segments
@@ -186,7 +187,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
                     raise RuntimeError(error_message)
 
                 logging.warning(error_message)
-                return
+                continue
 
             if base_path_spec.type_indicator != dfvfs_definitions.TYPE_INDICATOR_OS:
                 base_path_segments = self._GetBasePathSegments(base_path_spec.parent)

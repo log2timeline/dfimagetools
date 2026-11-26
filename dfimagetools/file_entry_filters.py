@@ -122,7 +122,7 @@ class DateTimeFileEntryFilter(FileEntryFilter):
                 end_time_string = date_time_range.end_date_time.CopyToDateTimeString()
 
                 lines.append(
-                    f"\t{date_time_range.time_value:s} after {end_time_string:s}"
+                    f"\t{date_time_range.time_value:s} before {end_time_string:s}"
                 )
 
             elif date_time_range.end_date_time is None:
@@ -130,7 +130,7 @@ class DateTimeFileEntryFilter(FileEntryFilter):
                     date_time_range.start_date_time.CopyToDateTimeString()
                 )
                 lines.append(
-                    f"\t{date_time_range.time_value:s} before {start_time_string:s}"
+                    f"\t{date_time_range.time_value:s} after {start_time_string:s}"
                 )
 
             else:
@@ -159,6 +159,7 @@ class DateTimeFileEntryFilter(FileEntryFilter):
         if not self._date_time_ranges:
             return None
 
+        has_applicable_range = False
         for date_time_range in self._date_time_ranges:
             time_attribute = self._TIME_VALUE_MAPPINGS.get(
                 date_time_range.time_value, None
@@ -169,6 +170,8 @@ class DateTimeFileEntryFilter(FileEntryFilter):
             timestamp = getattr(file_entry, time_attribute, None)
             if timestamp is None:
                 continue
+
+            has_applicable_range = True
 
             if (
                 date_time_range.start_date_time is not None
@@ -181,6 +184,9 @@ class DateTimeFileEntryFilter(FileEntryFilter):
                 and timestamp > date_time_range.end_date_time
             ):
                 return False
+
+        if not has_applicable_range:
+            return None
 
         return True
 

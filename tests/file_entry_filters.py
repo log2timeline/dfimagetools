@@ -37,6 +37,7 @@ class FakeFileEntry:
         super().__init__()
         self._is_file = is_file
         self.access_time = None
+        self.change_time = None
         self.name = name
         self.path_spec = FakePathSpec(location)
 
@@ -103,6 +104,27 @@ class DateTimeFileEntryFilterTest(test_lib.BaseTestCase):
                 end_time_string="2023-01-01 00:00:00",
             )
 
+    def testDescribe(self):
+        """Tests the Describe function."""
+        test_filter = file_entry_filters.DateTimeFileEntryFilter()
+        test_filter.AddDateTimeRange("atime", start_time_string="2023-01-01 00:00:00")
+        test_filter.AddDateTimeRange("ctime", end_time_string="2023-02-01 00:00:00")
+        test_filter.AddDateTimeRange(
+            "mtime",
+            start_time_string="2023-01-01 00:00:00",
+            end_time_string="2023-02-01 00:00:00",
+        )
+
+        expected_lines = [
+            "\tatime after 2023-01-01 00:00:00.000000",
+            "\tctime before 2023-02-01 00:00:00.000000",
+            (
+                "\tmtime between 2023-01-01 00:00:00.000000 and "
+                "2023-02-01 00:00:00.000000"
+            ),
+        ]
+        self.assertEqual(test_filter.Describe(), expected_lines)
+
     def testMatchesWithinRange(self):
         """Tests the Matches function with an access time within the range."""
         test_filter = file_entry_filters.DateTimeFileEntryFilter()
@@ -140,10 +162,23 @@ class DateTimeFileEntryFilterTest(test_lib.BaseTestCase):
             end_time_string="2023-02-01 00:00:00",
         )
 
-        # A file entry without a timestamp for the time value is not matched
-        # against the range.
+        # The filter does not apply to a file entry without a timestamp for
+        # the time value.
         test_file_entry = FakeFileEntry()
-        self.assertTrue(test_filter.Matches(test_file_entry))
+        self.assertIsNone(test_filter.Matches(test_file_entry))
+
+    def testMatchesNoChangeTime(self):
+        """Tests the Matches function if the file entry has no change time."""
+        test_filter = file_entry_filters.DateTimeFileEntryFilter()
+        test_filter.AddDateTimeRange(
+            "ctime",
+            start_time_string="2023-01-01 00:00:00",
+            end_time_string="2023-02-01 00:00:00",
+        )
+
+        test_file_entry = FakeFileEntry()
+        self.assertIsNone(test_file_entry.change_time)
+        self.assertIsNone(test_filter.Matches(test_file_entry))
 
     def testMatchesNoDateTimes(self):
         """Tests the Matches function without date times."""
@@ -263,6 +298,28 @@ class FileEntryFilterCollectionTest(test_lib.BaseTestCase):
         # extension.
         test_file_entry = FakeFileEntry(
             name="logs", location="/dir/logs", is_file=False
+        )
+        self.assertFalse(test_filter_collection.Matches(test_file_entry))
+
+    def testMatchesWithDateTimeFilterNotApplicable(self):
+        """Tests the Matches function with a date time filter that does not apply."""
+        date_time_filter = file_entry_filters.DateTimeFileEntryFilter()
+        date_time_filter.AddDateTimeRange(
+            "ctime",
+            start_time_string="2023-01-01 00:00:00",
+            end_time_string="2023-02-01 00:00:00",
+        )
+
+        test_filter_collection = file_entry_filters.FileEntryFilterCollection()
+        test_filter_collection.AddFilter(
+            file_entry_filters.ExtensionsFileEntryFilter(["evtx"])
+        )
+        test_filter_collection.AddFilter(date_time_filter)
+
+        # The file entry does not match the extensions filter and the date time
+        # filter does not apply, since the file entry has no change time.
+        test_file_entry = FakeFileEntry(
+            name="application.txt", location="/dir/application.txt"
         )
         self.assertFalse(test_filter_collection.Matches(test_file_entry))
 

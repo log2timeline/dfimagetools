@@ -17,6 +17,41 @@ class FileEntryListerTest(test_lib.BaseTestCase):
 
     # pylint: disable=protected-access
 
+    def testGetBasePathSegmentsVSS(self):
+        """Tests the _GetBasePathSegments function with VSS snapshots."""
+        test_lister = file_entry_lister.FileEntryLister()
+
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_OS, location="/vss.raw"
+        )
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_RAW, parent=path_spec
+        )
+
+        vss1_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_VSHADOW,
+            location="/vss1",
+            parent=path_spec,
+            store_index=0,
+        )
+        vss2_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_VSHADOW,
+            location="/vss2",
+            parent=path_spec,
+            store_index=1,
+        )
+
+        # The path segments of the file entries in a VSS snapshot should be
+        # distinct from those in the current volume and other snapshots.
+        path_segments = test_lister._GetBasePathSegments(path_spec)
+        self.assertEqual(path_segments, [""])
+
+        path_segments = test_lister._GetBasePathSegments(vss1_path_spec)
+        self.assertEqual(path_segments, ["", "vss1"])
+
+        path_segments = test_lister._GetBasePathSegments(vss2_path_spec)
+        self.assertEqual(path_segments, ["", "vss2"])
+
     def testListFileEntry(self):
         """Tests the _ListFileEntry function."""
         path = self._GetTestFilePath(["image.qcow2"])
@@ -99,6 +134,42 @@ class FileEntryListerTest(test_lib.BaseTestCase):
         path_segments = [segments for _, segments in file_entries]
 
         self.assertEqual(len(path_segments), len(expected_path_segments))
+        self.assertEqual(path_segments, expected_path_segments)
+
+    def testListFileEntriesWithMissingBasePathSpec(self):
+        """Tests the ListFileEntries function with a missing base path spec."""
+        path = self._GetTestFilePath(["image.qcow2"])
+        self._SkipIfPathNotExists(path)
+
+        test_lister = file_entry_lister.FileEntryLister()
+
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_OS, location=path
+        )
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_QCOW, parent=path_spec
+        )
+        missing_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_TSK,
+            location="/bogus.txt",
+            parent=path_spec,
+        )
+        existing_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_TSK,
+            location="/passwords.txt",
+            parent=path_spec,
+        )
+
+        # A base path specification that cannot be opened should not stop
+        # the listing of the base path specifications that follow it.
+        with self.assertLogs(level="WARNING"):
+            file_entries = list(
+                test_lister.ListFileEntries([missing_path_spec, existing_path_spec])
+            )
+
+        expected_path_segments = [["", "passwords.txt"]]
+
+        path_segments = [segments for _, segments in file_entries]
         self.assertEqual(path_segments, expected_path_segments)
 
 

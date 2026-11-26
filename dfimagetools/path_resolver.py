@@ -80,13 +80,16 @@ class PathResolver:
             environment_variables
         )
 
-        # Make a copy of path_segments since this loop can change it.
-        for index, path_segment in enumerate(list(path_segments)):
+        # Build a new list of path segments since an expanded environment
+        # variable can result in multiple path segments.
+        expanded_path_segments = []
+        for path_segment in path_segments:
             if (
                 len(path_segment) <= 2
                 or not path_segment[0] == "%"
                 or not path_segment[-1] == "%"
             ):
+                expanded_path_segments.append(path_segment)
                 continue
 
             path_segment_upper_case = path_segment.upper()
@@ -95,13 +98,9 @@ class PathResolver:
             else:
                 lookup_key = path_segment_upper_case[1:-1]
             path_segment = lookup_table.get(lookup_key, path_segment)
-            path_segment = path_segment.split("\\")
+            expanded_path_segments.extend(path_segment.split("\\"))
 
-            expanded_path_segments = list(path_segments[:index])
-            expanded_path_segments.extend(path_segment)
-            expanded_path_segments.extend(path_segments[index + 1 :])
-
-            path_segments = expanded_path_segments
+        path_segments = expanded_path_segments
 
         if self._IsWindowsDrivePathSegment(path_segments[0]):
             path_segments[0] = ""

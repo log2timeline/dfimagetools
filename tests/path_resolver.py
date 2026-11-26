@@ -92,6 +92,19 @@ class PathResolverTest(test_lib.BaseTestCase):
         )
         self.assertEqual(path_segments, ["", "Windows", "System32"])
 
+        # Test multiple environment variables where the first one expands into
+        # multiple path segments.
+        environment_variable = resources.EnvironmentVariable(
+            case_sensitive=False, name="TEMP", value="T"
+        )
+        environment_variables.append(environment_variable)
+
+        path_segments = test_resolver._ExpandEnvironmentVariablesInPathSegments(
+            ["%%environ_systemroot%%", "System32", "%%environ_temp%%", "x"],
+            environment_variables,
+        )
+        self.assertEqual(path_segments, ["", "Windows", "System32", "T", "x"])
+
         # Test non-string environment variable.
         environment_variables = []
 
@@ -251,6 +264,18 @@ class PathResolverTest(test_lib.BaseTestCase):
             "%SystemRoot%\\System32", "\\", environment_variables
         )
         self.assertEqual(expanded_path, "\\Windows\\System32")
+
+        environment_variable = resources.EnvironmentVariable(
+            case_sensitive=False, name="TEMP", value="T"
+        )
+        environment_variables.append(environment_variable)
+
+        expanded_path = test_resolver.ExpandEnvironmentVariables(
+            "%%environ_systemroot%%\\System32\\%%environ_temp%%\\x",
+            "\\",
+            environment_variables,
+        )
+        self.assertEqual(expanded_path, "\\Windows\\System32\\T\\x")
 
     def testExpandGlobStars(self):
         """Tests the ExpandGlobStars function."""
