@@ -122,7 +122,7 @@ class DateTimeFileEntryFilter(FileEntryFilter):
                 end_time_string = date_time_range.end_date_time.CopyToDateTimeString()
 
                 lines.append(
-                    f"\t{date_time_range.time_value:s} after {end_time_string:s}"
+                    f"\t{date_time_range.time_value:s} before {end_time_string:s}"
                 )
 
             elif date_time_range.end_date_time is None:
@@ -130,7 +130,7 @@ class DateTimeFileEntryFilter(FileEntryFilter):
                     date_time_range.start_date_time.CopyToDateTimeString()
                 )
                 lines.append(
-                    f"\t{date_time_range.time_value:s} before {start_time_string:s}"
+                    f"\t{date_time_range.time_value:s} after {start_time_string:s}"
                 )
 
             else:

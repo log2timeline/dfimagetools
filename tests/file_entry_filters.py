@@ -103,6 +103,27 @@ class DateTimeFileEntryFilterTest(test_lib.BaseTestCase):
                 end_time_string="2023-01-01 00:00:00",
             )
 
+    def testDescribe(self):
+        """Tests the Describe function."""
+        test_filter = file_entry_filters.DateTimeFileEntryFilter()
+        test_filter.AddDateTimeRange("atime", start_time_string="2023-01-01 00:00:00")
+        test_filter.AddDateTimeRange("ctime", end_time_string="2023-02-01 00:00:00")
+        test_filter.AddDateTimeRange(
+            "mtime",
+            start_time_string="2023-01-01 00:00:00",
+            end_time_string="2023-02-01 00:00:00",
+        )
+
+        expected_lines = [
+            "\tatime after 2023-01-01 00:00:00.000000",
+            "\tctime before 2023-02-01 00:00:00.000000",
+            (
+                "\tmtime between 2023-01-01 00:00:00.000000 and "
+                "2023-02-01 00:00:00.000000"
+            ),
+        ]
+        self.assertEqual(test_filter.Describe(), expected_lines)
+
     def testMatchesWithinRange(self):
         """Tests the Matches function with an access time within the range."""
         test_filter = file_entry_filters.DateTimeFileEntryFilter()
