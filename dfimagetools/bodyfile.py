@@ -1,6 +1,8 @@
 """Helper for generating bodyfile entries."""
 
 from dfdatetime import definitions as dfdatetime_definitions
+from dfdatetime import filetime as dfdatetime_filetime
+from dfdatetime import posix_time as dfdatetime_posix_time
 
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.vfs import ntfs_attribute as dfvfs_ntfs_attribute
@@ -39,6 +41,34 @@ class BodyfileGenerator:
         dfdatetime_definitions.PRECISION_10_MILLISECONDS: "{0:d}.{1:02d}",
         dfdatetime_definitions.PRECISION_100_MILLISECONDS: "{0:d}.{1:01d}",
     }
+
+    # Date time value types that can be formatted directly from their integer
+    # timestamp, as a tuple of native precision, number of timestamp units per
+    # second and the timestamp of the POSIX epoch (1970-01-01 00:00:00).
+    _INTEGER_TIMESTAMP_TYPES = {
+        dfdatetime_filetime.Filetime: (
+            dfdatetime_definitions.PRECISION_100_NANOSECONDS,
+            10000000,
+            116444736000000000,
+        ),
+        dfdatetime_posix_time.PosixTime: (
+            dfdatetime_definitions.PRECISION_1_SECOND,
+            1,
+            0,
+        ),
+        dfdatetime_posix_time.PosixTimeInMicroseconds: (
+            dfdatetime_definitions.PRECISION_1_MICROSECOND,
+            1000000,
+            0,
+        ),
+        dfdatetime_posix_time.PosixTimeInNanoseconds: (
+            dfdatetime_definitions.PRECISION_1_NANOSECOND,
+            1000000000,
+            0,
+        ),
+    }
+
+    _UINT64_MAX = (1 << 64) - 1
 
     def __init__(self, use_original_md5=False):
         """Initializes a bodyfile generator.
@@ -121,6 +151,22 @@ class BodyfileGenerator:
         """
         if not date_time or date_time.timestamp == 0:
             return ""
+
+        integer_timestamp_type = self._INTEGER_TIMESTAMP_TYPES.get(type(date_time))
+        if integer_timestamp_type:
+            precision, units_per_second, posix_epoch_timestamp = integer_timestamp_type
+            timestamp = date_time.timestamp
+            if (
+                date_time.precision == precision
+                and not date_time.time_zone_offset
+                and isinstance(timestamp, int)
+                and posix_epoch_timestamp <= timestamp <= self._UINT64_MAX
+            ):
+                posix_timestamp, fraction_of_second = divmod(
+                    timestamp - posix_epoch_timestamp, units_per_second
+                )
+                format_string = self._TIMESTAMP_FORMAT_STRINGS.get(precision, "{0:d}")
+                return format_string.format(posix_timestamp, fraction_of_second)
 
         posix_timestamp, fraction_of_second = (
             date_time.CopyToPosixTimestampWithFractionOfSecond()
