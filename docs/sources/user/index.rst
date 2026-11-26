@@ -9,3 +9,4 @@ ways to install dfImageTools, check the following instructions for more detail.
    :maxdepth: 2
 
   Installation instructions <Installation-instructions>
+  Using the tools <Using-the-tools>
