@@ -49,6 +49,7 @@ class BodyfileGenerator:
         """
         super().__init__()
         self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+        self._mode_strings = {}
         self._root_file_entry_identifier = None
         self._use_original_md5 = use_original_md5
 
@@ -83,6 +84,13 @@ class BodyfileGenerator:
         Returns:
           str: bodyfile representation of the mode.
         """
+        # Only the file type and permission bits are used in the representation.
+        mode &= 0xF1FF
+
+        mode_string = self._mode_strings.get(mode)
+        if mode_string:
+            return mode_string
+
         string_parts = 10 * ["-"]
 
         if mode & 0x0001:
@@ -108,7 +116,10 @@ class BodyfileGenerator:
 
         string_parts[0] = self._FILE_TYPES.get(mode & 0xF000, "-")
 
-        return "".join(string_parts)
+        mode_string = "".join(string_parts)
+        self._mode_strings[mode] = mode_string
+
+        return mode_string
 
     def _GetTimestamp(self, date_time):
         """Retrieves a bodyfile timestamp representation of a date time value.

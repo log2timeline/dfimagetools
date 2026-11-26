@@ -46,6 +46,24 @@ class BodyfileGeneratorTest(test_lib.BaseTestCase):
         mode_string = test_bodyfile_generator._GetModeString(0xC000)
         self.assertEqual(mode_string, "s---------")
 
+        mode_string = test_bodyfile_generator._GetModeString(0o100644)
+        self.assertEqual(mode_string, "-rw-r--r--")
+
+        # Test with cached mode string.
+        mode_string = test_bodyfile_generator._GetModeString(0o100644)
+        self.assertEqual(mode_string, "-rw-r--r--")
+
+        # Test with set-user-ID, set-group-ID and sticky bits.
+        mode_string = test_bodyfile_generator._GetModeString(0o47755)
+        self.assertEqual(mode_string, "drwxr-xr-x")
+
+        # Test with bits outside the 16-bit mode.
+        mode_string = test_bodyfile_generator._GetModeString(0x10000 | 0o40755)
+        self.assertEqual(mode_string, "drwxr-xr-x")
+
+        mode_string = test_bodyfile_generator._GetModeString(0x10000 | 0o100644)
+        self.assertEqual(mode_string, "-rw-r--r--")
+
     def testGetEntries(self):
         """Tests the GetEntries function."""
         path = self._GetTestFilePath(["image.qcow2"])
