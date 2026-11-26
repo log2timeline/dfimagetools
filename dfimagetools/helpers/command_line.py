@@ -134,7 +134,7 @@ def ParseStorageMediaImageCLIArguments(options):
         if credential_type == "key_data":
             try:
                 credential_data = codecs.decode(credential_data, "hex")
-            except TypeError:
+            except (TypeError, ValueError):
                 raise RuntimeError(
                     f"Unsupported credential data for: {credential_string:s}."
                 )
