@@ -17,6 +17,41 @@ class FileEntryListerTest(test_lib.BaseTestCase):
 
     # pylint: disable=protected-access
 
+    def testGetBasePathSegmentsVSS(self):
+        """Tests the _GetBasePathSegments function with VSS snapshots."""
+        test_lister = file_entry_lister.FileEntryLister()
+
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_OS, location="/vss.raw"
+        )
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_RAW, parent=path_spec
+        )
+
+        vss1_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_VSHADOW,
+            location="/vss1",
+            parent=path_spec,
+            store_index=0,
+        )
+        vss2_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_VSHADOW,
+            location="/vss2",
+            parent=path_spec,
+            store_index=1,
+        )
+
+        # The path segments of the file entries in a VSS snapshot should be
+        # distinct from those in the current volume and other snapshots.
+        path_segments = test_lister._GetBasePathSegments(path_spec)
+        self.assertEqual(path_segments, [""])
+
+        path_segments = test_lister._GetBasePathSegments(vss1_path_spec)
+        self.assertEqual(path_segments, ["", "vss1"])
+
+        path_segments = test_lister._GetBasePathSegments(vss2_path_spec)
+        self.assertEqual(path_segments, ["", "vss2"])
+
     def testListFileEntry(self):
         """Tests the _ListFileEntry function."""
         path = self._GetTestFilePath(["image.qcow2"])
