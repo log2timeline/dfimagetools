@@ -101,6 +101,42 @@ class FileEntryListerTest(test_lib.BaseTestCase):
         self.assertEqual(len(path_segments), len(expected_path_segments))
         self.assertEqual(path_segments, expected_path_segments)
 
+    def testListFileEntriesWithMissingBasePathSpec(self):
+        """Tests the ListFileEntries function with a missing base path spec."""
+        path = self._GetTestFilePath(["image.qcow2"])
+        self._SkipIfPathNotExists(path)
+
+        test_lister = file_entry_lister.FileEntryLister()
+
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_OS, location=path
+        )
+        path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_QCOW, parent=path_spec
+        )
+        missing_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_TSK,
+            location="/bogus.txt",
+            parent=path_spec,
+        )
+        existing_path_spec = path_spec_factory.Factory.NewPathSpec(
+            dfvfs_definitions.TYPE_INDICATOR_TSK,
+            location="/passwords.txt",
+            parent=path_spec,
+        )
+
+        # A base path specification that cannot be opened should not stop
+        # the listing of the base path specifications that follow it.
+        with self.assertLogs(level="WARNING"):
+            file_entries = list(
+                test_lister.ListFileEntries([missing_path_spec, existing_path_spec])
+            )
+
+        expected_path_segments = [["", "passwords.txt"]]
+
+        path_segments = [segments for _, segments in file_entries]
+        self.assertEqual(path_segments, expected_path_segments)
+
 
 if __name__ == "__main__":
     unittest.main()

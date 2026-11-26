@@ -186,7 +186,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
                     raise RuntimeError(error_message)
 
                 logging.warning(error_message)
-                return
+                continue
 
             if base_path_spec.type_indicator != dfvfs_definitions.TYPE_INDICATOR_OS:
                 base_path_segments = self._GetBasePathSegments(base_path_spec.parent)
