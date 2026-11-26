@@ -30,6 +30,7 @@ class ArtifactDefinitionFiltersGenerator:
         super().__init__()
         self._artifacts_registry = artifacts_registry
         self._environment_variables = environment_variables
+        self._find_specs_cache = {}
         self._path_resolver = path_resolver.PathResolver()
         self._user_accounts = user_accounts
 
@@ -138,6 +139,12 @@ class ArtifactDefinitionFiltersGenerator:
                 if not path.startswith(path_separator):
                     continue
 
+                lookup_key = (path, path_separator)
+                find_spec = self._find_specs_cache.get(lookup_key)
+                if find_spec:
+                    yield find_spec
+                    continue
+
                 try:
                     find_spec = self._BuildFindSpec(path, path_separator)
                 except ValueError as exception:
@@ -148,6 +155,8 @@ class ArtifactDefinitionFiltersGenerator:
                         )
                     )
                     continue
+
+                self._find_specs_cache[lookup_key] = find_spec
 
                 yield find_spec
 
