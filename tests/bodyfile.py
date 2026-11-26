@@ -18,6 +18,53 @@ class BodyfileGeneratorTest(test_lib.BaseTestCase):
 
     # pylint: disable=protected-access
 
+    def testEscapeStringWithEscapeCharacters(self):
+        """Tests the _EscapeString function with all escape characters."""
+        test_object = bodyfile.BodyfileGenerator()
+
+        for character in test_object._escape_characters:
+            string = f"a{chr(character):s}b"
+            expected_string = string.translate(test_object._escape_characters)
+            self.assertNotEqual(expected_string, string)
+
+            escaped_string = test_object._EscapeString(string)
+            self.assertEqual(escaped_string, expected_string)
+
+    def testEscapeString(self):
+        """Tests the _EscapeString function."""
+        test_object = bodyfile.BodyfileGenerator()
+
+        # Printable characters.
+        self.assertEqual(test_object._EscapeString(""), "")
+        self.assertEqual(test_object._EscapeString("file.txt"), "file.txt")
+        self.assertEqual(test_object._EscapeString("Program Files"), "Program Files")
+        self.assertEqual(test_object._EscapeString("\u00fcber"), "\u00fcber")
+
+        # Printable characters that are escaped.
+        self.assertEqual(test_object._EscapeString("a/b"), "a\\/b")
+        self.assertEqual(test_object._EscapeString("a:b"), "a\\:b")
+        self.assertEqual(test_object._EscapeString("a\\b"), "a\\\\b")
+        self.assertEqual(test_object._EscapeString("a|b"), "a\\|b")
+
+        # C0 and C1 control characters.
+        self.assertEqual(test_object._EscapeString("a\tb"), "a\\x09b")
+        self.assertEqual(test_object._EscapeString("a\x85b"), "a\\x85b")
+
+        # Unicode surrogate characters.
+        self.assertEqual(test_object._EscapeString("a\ud800b"), "a\\U0000d800b")
+
+        # Undefined Unicode characters.
+        self.assertEqual(test_object._EscapeString("a\ufffeb"), "a\\U0000fffeb")
+
+        # Observed non-printable Unicode characters.
+        self.assertEqual(test_object._EscapeString("a\u2028b"), "a\\U00002028b")
+
+        # Non-printable characters that are not escaped.
+        self.assertEqual(test_object._EscapeString("a\u00adb"), "a\u00adb")
+
+        # Mixed printable and non-printable characters.
+        self.assertEqual(test_object._EscapeString("a/\tb"), "a\\/\\x09b")
+
     def testGetModeString(self):
         """Tests the _GetModeString function."""
         test_bodyfile_generator = bodyfile.BodyfileGenerator()

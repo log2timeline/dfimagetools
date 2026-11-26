@@ -1,5 +1,7 @@
 """Helper for generating bodyfile entries."""
 
+import re
+
 from dfdatetime import definitions as dfdatetime_definitions
 
 from dfvfs.lib import definitions as dfvfs_definitions
@@ -48,9 +50,40 @@ class BodyfileGenerator:
               instead of a more human readable variant should be used.
         """
         super().__init__()
-        self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+        escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+
+        # Printable characters that need to be escaped, which are used to
+        # determine if a printable string can be returned without translation.
+        printable_escape_characters = "".join(
+            sorted(
+                chr(character)
+                for character in escape_characters
+                if chr(character).isprintable()
+            )
+        )
+
+        self._escape_characters = escape_characters
+        self._printable_escape_characters_regex = re.compile(
+            f"[{re.escape(printable_escape_characters):s}]"
+        )
         self._root_file_entry_identifier = None
         self._use_original_md5 = use_original_md5
+
+    def _EscapeString(self, string):
+        """Escapes a string.
+
+        Args:
+          string (str): string to escape.
+
+        Returns:
+          str: escaped string.
+        """
+        if string.isprintable():
+            match = self._printable_escape_characters_regex.search(string)
+            if not match:
+                return string
+
+        return string.translate(self._escape_characters)
 
     def _GetFileAttributeFlagsString(self, file_type, file_attribute_flags):
         """Retrieves a bodyfile string representation of file attributes flags.
@@ -211,10 +244,7 @@ class BodyfileGenerator:
         else:
             md5_string = "N/A (skipped)"
 
-        path_segments = [
-            (segment or "").translate(self._escape_characters)
-            for segment in path_segments
-        ]
+        path_segments = [self._EscapeString(segment or "") for segment in path_segments]
         file_entry_name_value = "/".join(path_segments) or "/"
 
         if file_entry.IsRoot() and not file_entry_name_value.endswith("/"):
@@ -230,7 +260,7 @@ class BodyfileGenerator:
                 path_segments = file_entry.link.split("\\")
 
                 escaped_segments = [
-                    segment.translate(self._escape_characters)
+                    self._EscapeString(segment)
                     for segment in path_segments[1:]
                     if segment and segment != "."
                 ]
@@ -241,7 +271,7 @@ class BodyfileGenerator:
                 path_segments = file_entry.link.split("/")
 
                 escaped_segments = [
-                    segment.translate(self._escape_characters)
+                    self._EscapeString(segment)
                     for index, segment in enumerate(path_segments)
                     if (index == 0 or segment) and segment != "."
                 ]
@@ -268,7 +298,7 @@ class BodyfileGenerator:
         )
         for data_stream in file_entry.data_streams:
             if data_stream.name:
-                data_stream_name = data_stream.name.translate(self._escape_characters)
+                data_stream_name = self._EscapeString(data_stream.name)
                 data_stream_name_value = ":".join(
                     [file_entry_name_value, data_stream_name]
                 )
