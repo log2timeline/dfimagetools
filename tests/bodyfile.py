@@ -90,6 +90,51 @@ class BodyfileGeneratorTest(test_lib.BaseTestCase):
         self.assertEqual(len(bodyfile_entries), 1)
         self.assertEqual(bodyfile_entries[0], expected_bodyfile_entry)
 
+    def testGetEntriesWithEXTImage(self):
+        """Tests the GetEntries function with an EXT image."""
+        path = self._GetTestFilePath(["image.qcow2"])
+        self._SkipIfPathNotExists(path)
+
+        test_lister = file_entry_lister.FileEntryLister()
+        base_path_specs = test_lister.GetBasePathSpecs(path)
+        file_entries = list(test_lister.ListFileEntries(base_path_specs))
+
+        self.assertEqual(len(file_entries), 6)
+
+        test_bodyfile_generator = bodyfile.BodyfileGenerator(use_original_md5=True)
+
+        bodyfile_entries = []
+        for file_entry, path_segments in file_entries:
+            self.assertEqual(
+                file_entry.type_indicator, dfvfs_definitions.TYPE_INDICATOR_EXT
+            )
+            for bodyfile_entry in test_bodyfile_generator.GetEntries(
+                file_entry, path_segments
+            ):
+                bodyfile_entries.append(bodyfile_entry)
+
+        expected_bodyfile_entries = [
+            "0|/|2|drwxr-xr-x|151107|5000|0|1337961655|1337961653|1337961653|",
+            "0|/lost+found|11|drwx------|0|0|0|1337961350|1337961350|1337961350|",
+            (
+                "0|/a_directory|12|drwxr-xr-x|151107|5000|0|1337961564|1337961563|"
+                "1337961563|"
+            ),
+            (
+                "0|/a_directory/another_file|16|-rw-------|151107|5000|22|"
+                "1337961563|1337961563|1337961563|"
+            ),
+            (
+                "0|/a_directory/a_file|14|-rw-------|151107|5000|53|1337961554|"
+                "1337961554|1337961554|"
+            ),
+            (
+                "0|/passwords.txt|15|-r--------|151107|5000|116|1337961653|"
+                "1337961653|1337961663|"
+            ),
+        ]
+        self.assertEqual(bodyfile_entries, expected_bodyfile_entries)
+
     def testGetEntriesWithNTFSImage(self):
         """Tests the GetEntries function with a NTFS image."""
         path = self._GetTestFilePath(["ntfs.vhd"])

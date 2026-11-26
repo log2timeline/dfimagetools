@@ -290,6 +290,9 @@ class BodyfileGenerator:
                     ]
                 )
 
+        if file_entry.type_indicator != dfvfs_definitions.TYPE_INDICATOR_NTFS:
+            return
+
         for attribute in file_entry.attributes:
             if isinstance(attribute, dfvfs_ntfs_attribute.FileNameNTFSAttribute):
                 if (
