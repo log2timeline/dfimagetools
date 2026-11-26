@@ -25,6 +25,12 @@ class RecursiveHasher:
     #    str: data stream name
     _PATHS_TO_IGNORE = frozenset([(("$BadClus",), "$Bad")])
 
+    # Names of the data streams in _PATHS_TO_IGNORE, used to only determine
+    # the lookup path of a file entry when needed.
+    _DATA_STREAM_NAMES_TO_IGNORE = frozenset(
+        data_stream_name for _, data_stream_name in _PATHS_TO_IGNORE
+    )
+
     def __init__(self, include_extended_attributes=False, stop_on_error=False):
         """Initializes a recursive hasher.
 
@@ -117,6 +123,24 @@ class RecursiveHasher:
             file_entry.path_spec, file_object, data_stream_name
         )
 
+    def _GetLookupPath(self, file_entry, path_segments):
+        """Retrieves a path to look up in the paths to ignore.
+
+        Args:
+          file_entry (dfvfs.FileEntry): file entry.
+          path_segments (list[str]): path segments of the full path of the file
+              entry.
+
+        Returns:
+          tuple[str]: lookup path represented as a tuple of path segments.
+        """
+        location = getattr(file_entry.path_spec, "location", None)
+        if location:
+            file_system = file_entry.GetFileSystem()
+            return tuple(file_system.SplitPath(location))
+
+        return tuple(path_segments[1:])
+
     def _GetDisplayPath(self, path_segments, data_stream_name):
         """Retrieves a path to display.
 
@@ -151,19 +175,21 @@ class RecursiveHasher:
         Yields:
           tuple[str, str]: display path and hash value.
         """
-        file_system = file_entry.GetFileSystem()
-        location = getattr(file_entry.path_spec, "location", None)
-        if location:
-            lookup_path = tuple(file_system.SplitPath(location))
-        else:
-            lookup_path = tuple(path_segments[1:])
-
         data_stream_name = None
+        lookup_path = None
 
         try:
             for data_stream in file_entry.data_streams:
                 data_stream_name = data_stream.name
-                if (lookup_path, data_stream_name) in self._PATHS_TO_IGNORE:
+
+                is_ignored = False
+                if data_stream_name in self._DATA_STREAM_NAMES_TO_IGNORE:
+                    if lookup_path is None:
+                        lookup_path = self._GetLookupPath(file_entry, path_segments)
+                    lookup_key = (lookup_path, data_stream_name)
+                    is_ignored = lookup_key in self._PATHS_TO_IGNORE
+
+                if is_ignored:
                     hash_value = "N/A (skipped)"
                 else:
                     hash_value = self._CalculateHashFileEntry(
