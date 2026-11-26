@@ -3,6 +3,7 @@
 
 import unittest
 
+from dfvfs.helpers import file_system_searcher
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
 from dfvfs.path import factory as path_spec_factory
@@ -99,6 +100,37 @@ class FileEntryListerTest(test_lib.BaseTestCase):
         path_segments = [segments for _, segments in file_entries]
 
         self.assertEqual(len(path_segments), len(expected_path_segments))
+        self.assertEqual(path_segments, expected_path_segments)
+
+    def testListFileEntriesWithFindSpecs(self):
+        """Tests the ListFileEntriesWithFindSpecs function."""
+        path = self._GetTestFilePath(["image.qcow2"])
+        self._SkipIfPathNotExists(path)
+
+        test_lister = file_entry_lister.FileEntryLister()
+
+        base_path_specs = test_lister.GetBasePathSpecs(path)
+        find_specs = [
+            file_system_searcher.FindSpec(
+                case_sensitive=False,
+                location_glob="/a_directory/*",
+                location_separator="/",
+            )
+        ]
+        file_entries = list(
+            test_lister.ListFileEntriesWithFindSpecs(base_path_specs, find_specs)
+        )
+
+        self.assertEqual(len(file_entries), 2)
+
+        file_entry_names = sorted(file_entry.name for file_entry, _ in file_entries)
+        self.assertEqual(file_entry_names, ["a_file", "another_file"])
+
+        path_segments = sorted(segments for _, segments in file_entries)
+        expected_path_segments = [
+            ["", "a_directory", "a_file"],
+            ["", "a_directory", "another_file"],
+        ]
         self.assertEqual(path_segments, expected_path_segments)
 
 
