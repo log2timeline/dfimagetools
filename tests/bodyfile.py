@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Tests for the helper to generating bodyfile entries."""
 
+import random
 import unittest
+
+from dfdatetime import definitions as dfdatetime_definitions
+from dfdatetime import filetime as dfdatetime_filetime
+from dfdatetime import posix_time as dfdatetime_posix_time
 
 from dfvfs.lib import definitions as dfvfs_definitions
 from dfvfs.resolver import resolver
@@ -45,6 +50,106 @@ class BodyfileGeneratorTest(test_lib.BaseTestCase):
 
         mode_string = test_bodyfile_generator._GetModeString(0xC000)
         self.assertEqual(mode_string, "s---------")
+
+    def _GetExpectedTimestamp(self, test_bodyfile_generator, date_time):
+        """Retrieves the expected bodyfile timestamp representation.
+
+        Args:
+          test_bodyfile_generator (BodyfileGenerator): bodyfile generator.
+          date_time (dfdatetime.DateTimeValues): date time value.
+
+        Returns:
+          str: bodyfile timestamp representation of the date time value.
+        """
+        if not date_time or date_time.timestamp == 0:
+            return ""
+
+        posix_timestamp, fraction_of_second = (
+            date_time.CopyToPosixTimestampWithFractionOfSecond()
+        )
+        format_string = test_bodyfile_generator._TIMESTAMP_FORMAT_STRINGS.get(
+            date_time.precision, "{0:d}"
+        )
+        return format_string.format(posix_timestamp, fraction_of_second)
+
+    def testGetTimestamp(self):
+        """Tests the _GetTimestamp function."""
+        test_bodyfile_generator = bodyfile.BodyfileGenerator()
+
+        test_random = random.Random(0)
+
+        filetime_posix_epoch = 116444736000000000
+        uint64_max = (1 << 64) - 1
+
+        filetime_timestamps = [
+            1,
+            filetime_posix_epoch - 1,
+            filetime_posix_epoch,
+            filetime_posix_epoch + 1,
+            uint64_max,
+        ]
+        filetime_timestamps.extend(
+            test_random.randint(0, uint64_max) for _ in range(250)
+        )
+
+        posix_time_timestamps = [-(1 << 63), -1, 1, (1 << 63) - 1, uint64_max]
+        posix_time_timestamps.extend(
+            test_random.randint(-(1 << 63), uint64_max) for _ in range(250)
+        )
+
+        test_values = [
+            (dfdatetime_filetime.Filetime, filetime_timestamps),
+            (dfdatetime_posix_time.PosixTime, posix_time_timestamps),
+            (dfdatetime_posix_time.PosixTimeInMicroseconds, posix_time_timestamps),
+            (dfdatetime_posix_time.PosixTimeInNanoseconds, posix_time_timestamps),
+        ]
+        for date_time_class, timestamps in test_values:
+            for timestamp in timestamps:
+                for time_zone_offset in (None, 0, 60, -60):
+                    date_time = date_time_class(
+                        time_zone_offset=time_zone_offset, timestamp=timestamp
+                    )
+                    expected_timestamp = self._GetExpectedTimestamp(
+                        test_bodyfile_generator, date_time
+                    )
+
+                    date_time = date_time_class(
+                        time_zone_offset=time_zone_offset, timestamp=timestamp
+                    )
+                    bodyfile_timestamp = test_bodyfile_generator._GetTimestamp(
+                        date_time
+                    )
+                    self.assertEqual(bodyfile_timestamp, expected_timestamp)
+
+        date_time = dfdatetime_filetime.Filetime(timestamp=filetime_posix_epoch)
+        bodyfile_timestamp = test_bodyfile_generator._GetTimestamp(date_time)
+        self.assertEqual(bodyfile_timestamp, "0.0000000")
+
+        date_time = dfdatetime_posix_time.PosixTimeInMicroseconds(
+            timestamp=1337961653000001
+        )
+        bodyfile_timestamp = test_bodyfile_generator._GetTimestamp(date_time)
+        self.assertEqual(bodyfile_timestamp, "1337961653.000001")
+
+        date_time = dfdatetime_posix_time.PosixTime(
+            time_zone_offset=60, timestamp=1337961653
+        )
+        bodyfile_timestamp = test_bodyfile_generator._GetTimestamp(date_time)
+        self.assertEqual(bodyfile_timestamp, "1337958053")
+
+        date_time = dfdatetime_posix_time.PosixTimeInMicroseconds(
+            precision=dfdatetime_definitions.PRECISION_1_MILLISECOND,
+            timestamp=1337961653123456,
+        )
+        bodyfile_timestamp = test_bodyfile_generator._GetTimestamp(date_time)
+        self.assertEqual(bodyfile_timestamp, "1337961653.123")
+
+        bodyfile_timestamp = test_bodyfile_generator._GetTimestamp(None)
+        self.assertEqual(bodyfile_timestamp, "")
+
+        date_time = dfdatetime_posix_time.PosixTime(timestamp=0)
+        bodyfile_timestamp = test_bodyfile_generator._GetTimestamp(date_time)
+        self.assertEqual(bodyfile_timestamp, "")
 
     def testGetEntries(self):
         """Tests the GetEntries function."""
