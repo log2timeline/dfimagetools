@@ -3,6 +3,7 @@
 
 import hashlib
 import logging
+import re
 
 from dfvfs.lib import errors as dfvfs_errors
 from dfvfs.vfs import ntfs_attribute
@@ -34,9 +35,40 @@ class RecursiveHasher:
           stop_on_error (Optional[bool]): True to stop on error.
         """
         super().__init__()
-        self._escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+        escape_characters = str.maketrans(self._ESCAPE_CHARACTERS)
+
+        # Printable characters that need to be escaped, which are used to
+        # determine if a printable string can be returned without translation.
+        printable_escape_characters = "".join(
+            sorted(
+                chr(character)
+                for character in escape_characters
+                if chr(character).isprintable()
+            )
+        )
+
+        self._escape_characters = escape_characters
+        self._printable_escape_characters_regex = re.compile(
+            f"[{re.escape(printable_escape_characters):s}]"
+        )
         self._include_extended_attributes = include_extended_attributes
         self._stop_on_error = stop_on_error
+
+    def _EscapeString(self, string):
+        """Escapes a string.
+
+        Args:
+          string (str): string to escape.
+
+        Returns:
+          str: escaped string.
+        """
+        if string.isprintable():
+            match = self._printable_escape_characters_regex.search(string)
+            if not match:
+                return string
+
+        return string.translate(self._escape_characters)
 
     def _CalculateHashDataStream(self, path_spec, file_object, data_stream_name):
         """Calculates a message digest hash of the data of the file entry.
@@ -130,13 +162,11 @@ class RecursiveHasher:
         """
         display_path = ""
 
-        path_segments = [
-            segment.translate(self._escape_characters) for segment in path_segments
-        ]
+        path_segments = [self._EscapeString(segment) for segment in path_segments]
         display_path = "".join([display_path, "/".join(path_segments)])
 
         if data_stream_name:
-            data_stream_name = data_stream_name.translate(self._escape_characters)
+            data_stream_name = self._EscapeString(data_stream_name)
             display_path = ":".join([display_path, data_stream_name])
 
         return display_path or "/"
