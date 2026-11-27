@@ -248,6 +248,10 @@ def Main():
         print("")
         return 1
 
+    # The absolute target path is used to determine relative paths, so that
+    # it does not need to be determined for every data stream.
+    absolute_target_path = os.path.abspath(target_path)
+
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
     mediator, volume_scanner_options = command_line.ParseStorageMediaImageCLIArguments(
@@ -438,7 +442,7 @@ def Main():
                             continue
 
                         relative_paths_by_digest.setdefault(digest, []).append(
-                            os.path.relpath(destination_path, target_path)
+                            os.path.relpath(destination_path, absolute_target_path)
                         )
 
                         if not options.include_duplicates:
