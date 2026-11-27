@@ -355,6 +355,10 @@ def Main():
     # data stream that was first extracted with that digest.
     first_extraction_by_digest = {}
 
+    # Directories created by this run, used to prevent redundant os.makedirs
+    # calls.
+    created_directories = set()
+
     # Hashing is only needed for de-duplication or generating the hashes.json
     # file.
     hash_data_streams = not (options.include_duplicates and options.no_hashes)
@@ -464,7 +468,9 @@ def Main():
                         f"Extracting: {display_path:s} to: {destination_path:s}"
                     )
                     destination_directory = os.path.dirname(destination_path)
-                    os.makedirs(destination_directory, exist_ok=True)
+                    if destination_directory not in created_directories:
+                        os.makedirs(destination_directory, exist_ok=True)
+                        created_directories.add(destination_directory)
 
                     try:
                         stream_writer.WriteDataStream(
