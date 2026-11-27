@@ -228,7 +228,7 @@ class FileEntryLister(volume_scanner.VolumeScanner):
 
             searcher = file_system_searcher.FileSystemSearcher(file_system, mount_point)
             for path_spec in searcher.Find(find_specs=find_specs):
-                file_entry = dfvfs_resolver.Resolver.OpenFileEntry(path_spec)
+                file_entry = file_system.GetFileEntryByPathSpec(path_spec)
                 path_segments = file_system.SplitPath(path_spec.location)
 
                 full_path_segments = list(base_path_segments)
