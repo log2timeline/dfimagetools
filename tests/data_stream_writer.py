@@ -91,6 +91,37 @@ class DataStreamWriterTest(test_lib.BaseTestCase):
                     ["link", "passwords.txt"], "", target_path
                 )
 
+    def testIsPathContained(self):
+        """Tests the _IsPathContained function."""
+        test_data_stream_writer = data_stream_writer.DataStreamWriter()
+
+        with test_lib.TempDirectory() as temp_directory:
+            target_path = os.path.join(temp_directory, "target")
+            os.makedirs(target_path)
+
+            # Test twice to ensure the cached normalized target path is used
+            # consistently.
+            for _ in range(2):
+                result = test_data_stream_writer._IsPathContained(
+                    target_path, os.path.join(target_path, "passwords.txt")
+                )
+                self.assertTrue(result)
+
+                result = test_data_stream_writer._IsPathContained(
+                    target_path, target_path
+                )
+                self.assertTrue(result)
+
+                result = test_data_stream_writer._IsPathContained(
+                    target_path, os.path.join(temp_directory, "passwords.txt")
+                )
+                self.assertFalse(result)
+
+            self.assertEqual(
+                test_data_stream_writer._normalized_target_paths,
+                {target_path: os.path.realpath(target_path)},
+            )
+
     def testWriteDataStream(self):
         """Tests the WriteDataStream function."""
         path = self._GetTestFilePath(["image.qcow2"])

@@ -43,6 +43,7 @@ class DataStreamWriter:
         self._invalid_path_characters = str.maketrans(
             {value: "_" for value in self._INVALID_PATH_CHARACTERS}
         )
+        self._normalized_target_paths = {}
 
     def GetDisplayPath(self, source_path_segments, source_data_stream_name):
         """Retrieves a path to display.
@@ -129,7 +130,11 @@ class DataStreamWriter:
           bool: True if the destination path is within the target path
               or False if not.
         """
-        normalized_target_path = os.path.realpath(target_path)
+        normalized_target_path = self._normalized_target_paths.get(target_path)
+        if normalized_target_path is None:
+            normalized_target_path = os.path.realpath(target_path)
+            self._normalized_target_paths[target_path] = normalized_target_path
+
         normalized_destination_path = os.path.realpath(destination_path)
 
         if normalized_destination_path == normalized_target_path:
