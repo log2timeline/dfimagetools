@@ -362,6 +362,64 @@ class ArtifactDefinitionFiltersGeneratorTest(test_lib.BaseTestCase):
             log_capture.output,
         )
 
+    def testBuildFindSpecsFromFileSourcePathWithCachedFindSpec(self):
+        """Tests _BuildFindSpecsFromFileSourcePath with a cached find specification."""
+        registry = artifacts_registry.ArtifactDefinitionsRegistry()
+
+        test_generator = artifact_filters.ArtifactDefinitionFiltersGenerator(registry)
+
+        environment_variables = [
+            resources.EnvironmentVariable(
+                case_sensitive=False, name="%SystemRoot%", value="C:\\Windows"
+            )
+        ]
+
+        find_specs = list(
+            test_generator._BuildFindSpecsFromFileSourcePath(
+                "\\Windows\\test_data\\*.evtx", "\\"
+            )
+        )
+        self.assertEqual(len(find_specs), 1)
+
+        # A path that expands to the same location glob should be built once.
+        cached_find_specs = list(
+            test_generator._BuildFindSpecsFromFileSourcePath(
+                "%%environ_systemroot%%\\test_data\\*.evtx",
+                "\\",
+                environment_variables=environment_variables,
+            )
+        )
+        self.assertEqual(len(cached_find_specs), 1)
+        self.assertIs(cached_find_specs[0], find_specs[0])
+
+        # A different path separator should result in a different find
+        # specification.
+        other_find_specs = list(
+            test_generator._BuildFindSpecsFromFileSourcePath(
+                "/Windows/test_data/*.evtx", "/"
+            )
+        )
+        self.assertEqual(len(other_find_specs), 1)
+        self.assertIsNot(other_find_specs[0], find_specs[0])
+
+    def testBuildFindSpecsFromFileSourcePathWithRepeatedBuildError(self):
+        """Tests _BuildFindSpecsFromFileSourcePath when building fails repeatedly."""
+        registry = artifacts_registry.ArtifactDefinitionsRegistry()
+
+        test_generator = _FailingFindSpecGenerator(registry)
+
+        with self.assertLogs(level=logging.ERROR) as log_capture:
+            for _ in range(2):
+                find_specs = list(
+                    test_generator._BuildFindSpecsFromFileSourcePath(
+                        "\\test_data\\*.evtx", "\\"
+                    )
+                )
+                self.assertEqual(len(find_specs), 0)
+
+        # Failures are not cached, hence the error is logged every time.
+        self.assertEqual(len(log_capture.output), 2)
+
     def testGetFindSpecs(self):
         """Tests the GetFindSpecs function."""
         registry = artifacts_registry.ArtifactDefinitionsRegistry()
