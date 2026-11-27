@@ -428,10 +428,14 @@ def Main():
                         continue
 
                     digest = None
+                    file_object = None
+                    file_data = None
                     if hash_data_streams:
                         try:
-                            digest = stream_writer.CalculateHash(
-                                file_entry, data_stream.name
+                            digest, file_object, file_data = (
+                                stream_writer.CalculateHashAndReadData(
+                                    file_entry, data_stream.name
+                                )
                             )
                         except (OSError, dfvfs_errors.BackEndError) as exception:
                             logging.warning(f"{display_path:s} skipped: {exception!s}")
@@ -467,9 +471,14 @@ def Main():
                     os.makedirs(destination_directory, exist_ok=True)
 
                     try:
-                        stream_writer.WriteDataStream(
-                            file_entry, data_stream.name, destination_path
-                        )
+                        if file_object:
+                            stream_writer.WriteFileObject(
+                                file_object, destination_path, data=file_data
+                            )
+                        else:
+                            stream_writer.WriteDataStream(
+                                file_entry, data_stream.name, destination_path
+                            )
                     except (OSError, dfvfs_errors.BackEndError) as exception:
                         logging.warning(f"{display_path:s} skipped: {exception!s}")
                         break

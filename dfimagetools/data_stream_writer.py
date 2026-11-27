@@ -185,3 +185,64 @@ class DataStreamWriter:
             data = file_object.read(self._READ_BUFFER_SIZE)
 
         return hash_context.hexdigest()
+
+    def CalculateHashAndReadData(self, file_entry, data_stream_name):
+        """Calculates the SHA-256 hash of the contents of a data stream.
+
+        This function opens the data stream only once and retains its contents
+        if they fit in a single read buffer, so that the data stream can be
+        written afterwards with WriteFileObject without reading it again.
+
+        Args:
+          file_entry (dfvfs.FileEntry): file entry containing the data stream.
+          data_stream_name (str): name of the data stream.
+
+        Returns:
+          tuple[str, dfvfs.FileIO, bytes]: hexadecimal representation of the
+              SHA-256 hash of the data stream, file-like object of the data stream
+              and the contents of the data stream if they fit in a single read
+              buffer or None otherwise.
+
+        Raises:
+          OSError: if the contents of the data stream cannot be read.
+        """
+        file_object = file_entry.GetFileObject(data_stream_name=data_stream_name)
+        if not file_object:
+            raise OSError("No data stream available.")
+
+        hash_context = hashlib.sha256()
+
+        file_object.seek(0, os.SEEK_SET)
+        data = file_object.read(self._READ_BUFFER_SIZE)
+        retained_data = data
+        while data:
+            hash_context.update(data)
+            data = file_object.read(self._READ_BUFFER_SIZE)
+            if data:
+                retained_data = None
+
+        return hash_context.hexdigest(), file_object, retained_data
+
+    def WriteFileObject(self, file_object, destination_path, data=None):
+        """Writes the contents of a file-like object to a destination file.
+
+        Note that this function will overwrite an existing file.
+
+        Args:
+          file_object (dfvfs.FileIO): file-like object whose content is to be
+              written.
+          destination_path (str): path of the destination file.
+          data (Optional[bytes]): contents of the file-like object, as retained by
+              CalculateHashAndReadData, or None if the contents should be read from
+              the file-like object.
+        """
+        with open(destination_path, "wb") as destination_file_object:
+            if data is not None:
+                destination_file_object.write(data)
+            else:
+                file_object.seek(0, os.SEEK_SET)
+
+                data = file_object.read(self._READ_BUFFER_SIZE)
+                while data:
+                    destination_file_object.write(data)
+                    data = file_object.read(self._READ_BUFFER_SIZE)
